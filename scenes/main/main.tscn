@@ -1,7 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://bg4vfn0r0v2rj"]
+[gd_scene load_steps=10 format=3 uid="uid://bg4vfn0r0v2rj"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_3u7kx"]
+[ext_resource type="Script" path="res://scripts/main/main.gd" id="1_3u7kx"]
 [ext_resource type="Script" path="res://scripts/grid_overlay.gd" id="2_nbv2g"]
+[ext_resource type="Script" path="res://scripts/main/components/build_manager.gd" id="3_d4i1a"]
+[ext_resource type="PackedScene" path="res://scenes/ui/build_hud.tscn" id="4_cba8v"]
+[ext_resource type="Script" path="res://scripts/main/components/camera_controller.gd" id="5_wms3n"]
+[ext_resource type="Script" path="res://scripts/main/components/entity_interaction_controller.gd" id="6_24o8e"]
+[ext_resource type="PackedScene" path="res://scenes/ui/confirmation_popup.tscn" id="7_1cuic"]
+[ext_resource type="PackedScene" path="res://scenes/ui/entity_actions_menu.tscn" id="8_40ieo"]
+[ext_resource type="PackedScene" path="res://scenes/ui/entity_config_dialog.tscn" id="9_xpbli"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_3u7kx")
@@ -17,124 +24,30 @@ script = ExtResource("2_nbv2g")
 
 [node name="Entities" type="Node2D" parent="World"]
 
+[node name="BuildManager" type="Node" parent="."]
+script = ExtResource("3_d4i1a")
+grid_overlay_path = NodePath("../World/GridOverlay")
+entities_container_path = NodePath("../World/Entities")
+
+[node name="CameraController" type="Node" parent="."]
+script = ExtResource("5_wms3n")
+camera_path = NodePath("../World/Camera2D")
+grid_overlay_path = NodePath("../World/GridOverlay")
+
+[node name="EntityInteractionController" type="Node" parent="."]
+script = ExtResource("6_24o8e")
+entities_container_path = NodePath("../World/Entities")
+confirmation_popup_path = NodePath("../CanvasLayer/ConfirmationPopup")
+entity_actions_menu_path = NodePath("../CanvasLayer/EntityActionsMenu")
+entity_config_dialog_path = NodePath("../CanvasLayer/EntityConfigDialog")
+build_manager_path = NodePath("../BuildManager")
+
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
-[node name="HUD" type="Control" parent="CanvasLayer"]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 1
+[node name="BuildHUD" parent="CanvasLayer" instance=ExtResource("4_cba8v")]
 
-[node name="BottomBar" type="PanelContainer" parent="CanvasLayer/HUD"]
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 0.9
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 8
+[node name="ConfirmationPopup" parent="CanvasLayer" instance=ExtResource("7_1cuic")]
 
-[node name="Margin" type="MarginContainer" parent="CanvasLayer/HUD/BottomBar"]
-layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
+[node name="EntityActionsMenu" parent="CanvasLayer" instance=ExtResource("8_40ieo")]
 
-[node name="Row" type="HBoxContainer" parent="CanvasLayer/HUD/BottomBar/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 10
-alignment = 1
-
-[node name="CameraButton" type="Button" parent="CanvasLayer/HUD/BottomBar/Margin/Row"]
-custom_minimum_size = Vector2(128, 40)
-layout_mode = 2
-text = "Camera"
-
-[node name="BuildButton" type="Button" parent="CanvasLayer/HUD/BottomBar/Margin/Row"]
-custom_minimum_size = Vector2(128, 40)
-layout_mode = 2
-text = "Construir"
-
-[node name="ModeLabel" type="Label" parent="CanvasLayer/HUD"]
-layout_mode = 1
-anchors_preset = 10
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -140.0
-offset_top = 28.0
-offset_right = 140.0
-offset_bottom = 60.0
-grow_horizontal = 2
-horizontal_alignment = 1
-text = "Modo atual: Camera"
-
-[node name="BuildMenu" type="PanelContainer" parent="CanvasLayer/HUD"]
-visible = false
-layout_mode = 1
-anchors_preset = 9
-anchor_left = 1.0
-anchor_top = 0.02
-anchor_right = 1.0
-anchor_bottom = 0.9
-offset_left = -280.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = -12.0
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
-
-[node name="BuildMenuMargin" type="MarginContainer" parent="CanvasLayer/HUD/BuildMenu"]
-layout_mode = 2
-theme_override_constants/margin_left = 14
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 14
-theme_override_constants/margin_bottom = 14
-
-[node name="BuildMenuColumn" type="VBoxContainer" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BuildMenuTitle" type="Label" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn"]
-layout_mode = 2
-text = "Construcao"
-
-[node name="BuildMenuGrid" type="GridContainer" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/h_separation = 10
-theme_override_constants/v_separation = 10
-columns = 2
-
-[node name="MachineCard" type="Button" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid"]
-custom_minimum_size = Vector2(108, 84)
-layout_mode = 2
-text = "Maquina"
-
-[node name="ChestCard" type="Button" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid"]
-custom_minimum_size = Vector2(108, 84)
-layout_mode = 2
-text = "Bau"
-
-[node name="SteelSourceCard" type="Button" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid"]
-custom_minimum_size = Vector2(108, 84)
-layout_mode = 2
-text = "Fonte de Aco"
-
-[node name="VendorCard" type="Button" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid"]
-custom_minimum_size = Vector2(108, 84)
-layout_mode = 2
-text = "Vendedor"
-
-[node name="BuildSelectionLabel" type="Label" parent="CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn"]
-layout_mode = 2
-text = "Selecionado: Maquina"
+[node name="EntityConfigDialog" parent="CanvasLayer" instance=ExtResource("9_xpbli")]

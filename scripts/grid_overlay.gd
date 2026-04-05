@@ -7,6 +7,14 @@ const GRID_ROWS := 80
 signal placement_requested(cell: Vector2i)
 
 var block_input := false
+var placement_enabled := false:
+	set(value):
+		if placement_enabled == value:
+			return
+		placement_enabled = value
+		if not value:
+			_has_hovered_cell = false
+		queue_redraw()
 var build_mode_enabled := false:
 	set(value):
 		if build_mode_enabled == value:
@@ -41,6 +49,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if not placement_enabled:
+			return
 		_update_hovered_cell(get_global_mouse_position())
 		if _can_place_at(_hovered_cell):
 			placement_requested.emit(_hovered_cell)
@@ -82,7 +92,7 @@ func _draw() -> void:
 		var y := float(row * CELL_SIZE)
 		draw_line(Vector2(0, y), Vector2(grid_size.x, y), grid_color, 1.0)
 
-	if _has_hovered_cell:
+	if placement_enabled and _has_hovered_cell:
 		var preview_rect := _rect_for_area(_hovered_cell, _preview_size)
 		var can_place := _can_place_at(_hovered_cell)
 		var fill_color := _preview_color
