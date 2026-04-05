@@ -5,12 +5,12 @@ const RECIPES := {
 	"parafuso": {
 		"id": "parafuso",
 		"entradas": [
-			{"item": "aco", "quantidade": 1},
+			{"item": "aco", "quantidade": 0.1},
 		],
 		"saidas": [
-			{"item": "parafuso", "quantidade": 15},
+			{"item": "parafuso", "quantidade": 1},
 		],
-		"tempoProducao": null,
+		"tempoProducao": 1000,
 	},
 	"viga": {
 		"id": "viga",
@@ -20,7 +20,7 @@ const RECIPES := {
 		"saidas": [
 			{"item": "viga", "quantidade": 1},
 		],
-		"tempoProducao": null,
+		"tempoProducao": 60000,
 	},
 }
 
