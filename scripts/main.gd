@@ -1,29 +1,17 @@
 extends Node2D
 
+const EntityDatabase = preload("res://scripts/data/entity_database.gd")
+
 const MODE_CAMERA := "Camera"
 const MODE_BUILD := "Construir"
 const ZOOM_STEP := 0.1
 const MIN_ZOOM := 0.5
 const MAX_ZOOM := 2.5
-const BUILD_DEFINITIONS := {
-	"Maquina": {
-		"scene": preload("res://scenes/entities/machine.tscn"),
-		"size": Vector2i(2, 2),
-		"color": Color("3b82f6"),
-		"infinite": false,
-	},
-	"Bau": {
-		"scene": preload("res://scenes/entities/chest.tscn"),
-		"size": Vector2i(2, 2),
-		"color": Color("d97706"),
-		"infinite": false,
-	},
-	"Fonte de Aco": {
-		"scene": preload("res://scenes/entities/steel_source.tscn"),
-		"size": Vector2i(2, 2),
-		"color": Color("10b981"),
-		"infinite": true,
-	},
+const BUILD_SCENES := {
+	"maquina": preload("res://scenes/entities/machine.tscn"),
+	"bau": preload("res://scenes/entities/chest.tscn"),
+	"fonte_aco": preload("res://scenes/entities/steel_source.tscn"),
+	"vendedor": preload("res://scenes/entities/vendor.tscn"),
 }
 
 @onready var camera_button: Button = $CanvasLayer/HUD/BottomBar/Margin/Row/CameraButton
@@ -38,11 +26,12 @@ const BUILD_DEFINITIONS := {
 @onready var machine_card: Button = $CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid/MachineCard
 @onready var chest_card: Button = $CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid/ChestCard
 @onready var steel_source_card: Button = $CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid/SteelSourceCard
+@onready var vendor_card: Button = $CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuGrid/VendorCard
 @onready var build_selection_label: Label = $CanvasLayer/HUD/BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildSelectionLabel
 
 var current_mode := MODE_CAMERA
 var is_panning := false
-var selected_building := "Maquina"
+var selected_building_id := "maquina"
 var occupied_cells: Array[Vector2i] = []
 
 
@@ -52,6 +41,7 @@ func _ready() -> void:
 	machine_card.pressed.connect(_on_machine_card_pressed)
 	chest_card.pressed.connect(_on_chest_card_pressed)
 	steel_source_card.pressed.connect(_on_steel_source_card_pressed)
+	vendor_card.pressed.connect(_on_vendor_card_pressed)
 	grid_overlay.placement_requested.connect(_on_grid_placement_requested)
 	_apply_theme()
 	_refresh_grid_build_preview()
@@ -68,25 +58,31 @@ func _on_build_pressed() -> void:
 
 
 func _on_machine_card_pressed() -> void:
-	selected_building = "Maquina"
+	selected_building_id = "maquina"
 	_update_build_selection_ui()
 	_refresh_grid_build_preview()
 
 
 func _on_chest_card_pressed() -> void:
-	selected_building = "Bau"
+	selected_building_id = "bau"
 	_update_build_selection_ui()
 	_refresh_grid_build_preview()
 
 
 func _on_steel_source_card_pressed() -> void:
-	selected_building = "Fonte de Aco"
+	selected_building_id = "fonte_aco"
+	_update_build_selection_ui()
+	_refresh_grid_build_preview()
+
+
+func _on_vendor_card_pressed() -> void:
+	selected_building_id = "vendedor"
 	_update_build_selection_ui()
 	_refresh_grid_build_preview()
 
 
 func _on_grid_placement_requested(cell: Vector2i) -> void:
-	var definition: Dictionary = BUILD_DEFINITIONS[selected_building]
+	var definition := _get_build_definition(selected_building_id)
 	var size: Vector2i = definition["size"]
 
 	if not grid_overlay.is_area_free(cell, size):
@@ -205,6 +201,15 @@ func _apply_theme() -> void:
 		card.add_theme_stylebox_override("pressed", _build_card_style(Color("0f766e"), Color("14b8a6")))
 		card.focus_mode = Control.FOCUS_NONE
 
+	vendor_card.add_theme_font_size_override("font_size", 17)
+	vendor_card.add_theme_color_override("font_color", Color("e2e8f0"))
+	vendor_card.add_theme_color_override("font_hover_color", Color("f8fafc"))
+	vendor_card.add_theme_color_override("font_pressed_color", Color("f8fafc"))
+	vendor_card.add_theme_stylebox_override("normal", _build_card_style(Color("162033"), Color("334155")))
+	vendor_card.add_theme_stylebox_override("hover", _build_card_style(Color("1e293b"), Color("64748b")))
+	vendor_card.add_theme_stylebox_override("pressed", _build_card_style(Color("0f766e"), Color("14b8a6")))
+	vendor_card.focus_mode = Control.FOCUS_NONE
+
 	camera_button.set_meta("default_style", default_button)
 	camera_button.set_meta("selected_style", selected_button)
 	build_button.set_meta("default_style", default_button)
@@ -215,6 +220,8 @@ func _apply_theme() -> void:
 	chest_card.set_meta("selected_style", _build_card_style(Color("fef3c7"), Color("f59e0b")))
 	steel_source_card.set_meta("default_style", _build_card_style(Color("162033"), Color("334155")))
 	steel_source_card.set_meta("selected_style", _build_card_style(Color("d1fae5"), Color("34d399")))
+	vendor_card.set_meta("default_style", _build_card_style(Color("162033"), Color("334155")))
+	vendor_card.set_meta("selected_style", _build_card_style(Color("fee2e2"), Color("f87171")))
 
 
 func _apply_zoom(delta: float) -> void:
@@ -223,10 +230,12 @@ func _apply_zoom(delta: float) -> void:
 
 
 func _update_build_selection_ui() -> void:
-	build_selection_label.text = "Selecionado: %s" % selected_building
-	_apply_button_selection(machine_card, selected_building == "Maquina")
-	_apply_button_selection(chest_card, selected_building == "Bau")
-	_apply_button_selection(steel_source_card, selected_building == "Fonte de Aco")
+	var entity_definition := EntityDatabase.get_entity(selected_building_id)
+	build_selection_label.text = "Selecionado: %s" % entity_definition.get("nome", selected_building_id)
+	_apply_button_selection(machine_card, selected_building_id == "maquina")
+	_apply_button_selection(chest_card, selected_building_id == "bau")
+	_apply_button_selection(steel_source_card, selected_building_id == "fonte_aco")
+	_apply_button_selection(vendor_card, selected_building_id == "vendedor")
 
 
 func _update_mode_ui() -> void:
@@ -279,7 +288,7 @@ func _apply_button_selection(button: Button, is_selected: bool) -> void:
 	var hover_style := selected_style if is_selected else _build_button_style(Color("334155"), Color("475569"))
 	var pressed_style := selected_style if is_selected else hover_style
 
-	if button == machine_card or button == chest_card or button == steel_source_card:
+	if button == machine_card or button == chest_card or button == steel_source_card or button == vendor_card:
 		hover_style = selected_style if is_selected else _build_card_style(Color("1e293b"), Color("64748b"))
 		pressed_style = selected_style if is_selected else _build_card_style(Color("0f766e"), Color("14b8a6"))
 
@@ -298,9 +307,20 @@ func _apply_button_selection(button: Button, is_selected: bool) -> void:
 
 
 func _refresh_grid_build_preview() -> void:
-	var definition: Dictionary = BUILD_DEFINITIONS[selected_building]
+	var definition := _get_build_definition(selected_building_id)
 	grid_overlay.set_build_preview(definition["size"], definition["color"])
 
 
 func _refresh_grid_occupancy() -> void:
 	grid_overlay.set_occupied_cells(occupied_cells)
+
+
+func _get_build_definition(entity_id: String) -> Dictionary:
+	var entity_definition := EntityDatabase.get_entity(entity_id)
+	return {
+		"id": entity_definition["id"],
+		"name": entity_definition["nome"],
+		"size": entity_definition["tamanho"],
+		"color": entity_definition["cor"],
+		"scene": BUILD_SCENES[entity_id],
+	}
