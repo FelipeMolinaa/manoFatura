@@ -31,8 +31,13 @@ O grid serve como referencia de construcao e ocupacao de espaco. Exemplo inicial
 
 ### Receitas iniciais
 
-- `1 aco -> 15 parafusos`
+- `0,1 aco -> 1 parafuso`
 - `5 aco -> 1 viga`
+
+### Tempos de producao iniciais
+
+- `Parafuso`: `1000 ms`
+- `Viga`: `60000 ms`
 
 ### Peso dos itens
 
@@ -82,31 +87,49 @@ Criar recursos ou estruturas de dados para:
 
 ### Itens
 
-| Item     | Peso | Valor de venda | Observacao                |
-| -------- | ---- | -------------- | ------------------------- |
-| Aco      | 1 kg | pendente       | materia-prima base        |
-| Parafuso | 1 g  | pendente       | produzido a partir de aco |
-| Viga     | 5 kg | pendente       | produzido a partir de aco |
+| Item     | Peso | Valor de compra | Valor de venda | Observacao                |
+| -------- | ---- | --------------- | -------------- | ------------------------- |
+| Aco      | 1 kg | 75              | 50             | materia-prima base        |
+| Parafuso | 1 g  | 10              | 5              | produzido a partir de aco |
+| Viga     | 5 kg | 35              | 25             | produzido a partir de aco |
 
 ### Entidades
 
 | Entidade        | Tamanho             | Custo    | Observacao                        |
 | --------------- | ------------------- | -------- | --------------------------------- |
-| Maquina pequena | 2x2                 | pendente | produz itens a partir de receitas |
-| Bau             | pendente            | pendente | armazenamento comum               |
-| Fonte infinita  | pendente            | pendente | gera recurso base                 |
+| Maquina pequena | 2x2                 | 100      | produz itens a partir de receitas |
+| Bau             | 2x2                 | 50       | armazenamento comum               |
+| Fonte infinita  | 2x2                 | 200      | gera recurso base                 |
 | Vendedor        | pendente            | pendente | converte itens em dinheiro        |
 | Funcionario     | nao usa grid rigido | pendente | executa operacao e transporte     |
 
-## 6. Riscos e Decisoes Pendentes
+### Receitas
+
+| Receita  | Entrada     | Saida        | Tempo      |
+| -------- | ----------- | ------------ | ---------- |
+| Parafuso | 0,1 `aco`   | 1 `parafuso` | 1000 ms    |
+| Viga     | 5 `aco`     | 1 `viga`     | 60000 ms   |
+
+## 6. Estado Atual da Implementacao
+
+Base ja implementada no projeto:
+
+- Cena principal com grid visivel e camera funcional
+- HUD de construcao separada da cena principal
+- Sistema de placement com preview de area valida e invalida
+- Controle de ocupacao do grid
+- Entidades base de construcao: `Maquina`, `Bau`, `Fonte de Aco` e `Vendedor`
+- Bancos de dados em GDScript para entidades, itens e receitas
+- Refatoracao da cena principal em componentes de construcao, camera e HUD
+
+## 7. Riscos e Decisoes Pendentes
 
 Pontos que precisam ser definidos cedo para evitar retrabalho:
 
-- Falta definir valor de compra de cada entidade
-- Falta definir valor de venda de cada item
 - Falta definir se `inventario de 1 item` significa `1 unidade` ou `1 slot com stack`
 - Falta definir capacidade interna de bau e maquina
+- Falta definir custo e papel de placement do `Vendedor`
+- Falta definir custo de contratacao ou manutencao do `Funcionario`
 - Falta definir se o funcionario apenas patrulha entre `A` e `B` ou se esses pontos servem como area preferencial de trabalho
-- Falta definir tempos de producao das receitas
 - Falta definir velocidade do funcionario e prioridade de tarefas
 - Falta definir se o vendedor compra qualquer item ou apenas produtos finais

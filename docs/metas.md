@@ -39,7 +39,7 @@ Objetivo: permitir posicionar entidades e validar espaco ocupado.
 - [x] Criar sistema de placement no grid
 - [x] Registrar ocupacao por tile
 - [x] Implementar entidades base: maquina, bau, fonte infinita e vendedor
-- [ ] Definir custo de compra de cada entidade
+- [x] Definir custo de compra de cada entidade
 - [x] Exibir preview de colocacao valida/invalida
 
 Entrega esperada:
