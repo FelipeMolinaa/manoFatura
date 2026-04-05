@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://dg8i0c8iof1k4"]
+
+[ext_resource type="Script" path="res://scripts/entity_visual.gd" id="1_jvpy4"]
+
+[node name="Machine" type="Node2D"]
+script = ExtResource("1_jvpy4")
+entity_name = "Maquina"
+entity_size_in_tiles = Vector2i(2, 2)
+entity_color = Color(0.231373, 0.682353, 0.831373, 1)
