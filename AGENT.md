@@ -21,11 +21,25 @@ Jogo 2D de fabrica com construcao em grid e operacao baseada em funcionarios. O 
 ## Estrutura de pastas
 
 - `docs/`: documentacao de produto, planejamento e metas
+- `docs/componentes.md`: catalogo de componentes reutilizaveis do projeto
 - `scenes/`: cenas do Godot
 - `scenes/main/`: cena principal e composicao geral
 - `scenes/entities/`: entidades posicionaveis no mapa
 - `scripts/`: scripts principais do projeto
 - `scripts/data/`: bancos de dados e definicoes estaticas de itens, entidades e receitas
+
+## Componentes reutilizaveis
+
+Antes de criar novos sistemas genericos, verificar se algum destes ja atende a necessidade:
+
+- `ConfirmationPopup`
+  Arquivos: `scenes/ui/confirmation_popup.tscn` e `scripts/ui/confirmation_popup.gd`
+  Uso: confirmacao de acoes destrutivas ou sensiveis por meio de `show_confirmation(...)` e sinal `action_confirmed`
+- `MoneySystem`
+  Arquivo: `scripts/main/components/money_system.gd`
+  Uso: fonte unica do dinheiro atual do jogador, com propriedade `money`, funcoes `spend` e `earn`, e sinal `money_changed`
+
+Ao implementar fluxos de compra, venda, confirmacao ou interacoes semelhantes, preferir reutilizar esses componentes em vez de recriar logica paralela.
 
 ## Regras de alteracao
 
