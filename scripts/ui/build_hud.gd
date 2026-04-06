@@ -7,10 +7,12 @@ const MODE_BUILD := "Construir"
 
 signal mode_selected(mode: String)
 signal build_selected(entity_id: String)
+signal workers_requested
 
 @onready var bottom_bar: PanelContainer = $BottomBar
 @onready var camera_button: Button = $BottomBar/Margin/Row/CameraButton
 @onready var build_button: Button = $BottomBar/Margin/Row/BuildButton
+@onready var workers_button: Button = $BottomBar/Margin/Row/WorkersButton
 @onready var money_label: Label = $BottomBar/Margin/Row/MoneyLabel
 @onready var mode_label: Label = $ModeLabel
 @onready var build_menu: PanelContainer = $BuildMenu
@@ -23,12 +25,14 @@ signal build_selected(entity_id: String)
 
 var current_mode := MODE_CAMERA
 var selected_building_id := ""
+var status_text := ""
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	camera_button.pressed.connect(func() -> void: mode_selected.emit(MODE_CAMERA))
 	build_button.pressed.connect(func() -> void: mode_selected.emit(MODE_BUILD))
+	workers_button.pressed.connect(func() -> void: workers_requested.emit())
 	machine_card.pressed.connect(func() -> void: build_selected.emit("maquina"))
 	chest_card.pressed.connect(func() -> void: build_selected.emit("bau"))
 	steel_source_card.pressed.connect(func() -> void: build_selected.emit("fonte_aco"))
@@ -40,8 +44,8 @@ func _ready() -> void:
 
 func set_mode(mode: String) -> void:
 	current_mode = mode
-	mode_label.text = "Modo atual: %s" % current_mode
 	build_menu.visible = current_mode == MODE_BUILD
+	_update_mode_label()
 	_update_mode_ui()
 
 
@@ -95,7 +99,7 @@ func _apply_theme() -> void:
 	var hover_button := _build_button_style(Color("334155"), Color("475569"))
 	var selected_button := _build_button_style(Color("e2e8f0"), Color("f8fafc"))
 
-	for button in [camera_button, build_button]:
+	for button in [camera_button, build_button, workers_button]:
 		button.add_theme_font_size_override("font_size", 16)
 		button.add_theme_color_override("font_color", Color("e5e7eb"))
 		button.add_theme_color_override("font_hover_color", Color("f8fafc"))
@@ -128,6 +132,8 @@ func _apply_theme() -> void:
 	camera_button.set_meta("selected_style", selected_button)
 	build_button.set_meta("default_style", default_button)
 	build_button.set_meta("selected_style", selected_button)
+	workers_button.set_meta("default_style", default_button)
+	workers_button.set_meta("selected_style", default_button)
 	machine_card.set_meta("default_style", _build_card_style(Color("162033"), Color("334155")))
 	machine_card.set_meta("selected_style", _build_card_style(Color("dbeafe"), Color("93c5fd")))
 	chest_card.set_meta("default_style", _build_card_style(Color("162033"), Color("334155")))
@@ -203,3 +209,15 @@ func _apply_button_selection(button: Button, is_selected: bool) -> void:
 
 func set_money(current_money: int) -> void:
 	money_label.text = "Dinheiro: $%d" % current_money
+
+
+func set_status_text(text: String) -> void:
+	status_text = text
+	_update_mode_label()
+
+
+func _update_mode_label() -> void:
+	if status_text.is_empty():
+		mode_label.text = "Modo atual: %s" % current_mode
+		return
+	mode_label.text = status_text

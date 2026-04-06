@@ -5,6 +5,7 @@ const GRID_COLUMNS := 80
 const GRID_ROWS := 80
 
 signal placement_requested(cell: Vector2i)
+signal marker_requested(cell: Vector2i)
 
 var block_input := false
 var placement_enabled := false:
@@ -30,6 +31,9 @@ var _hovered_cell := Vector2i.ZERO
 var _preview_size := Vector2i.ONE
 var _preview_color := Color("38bdf8")
 var _occupied_cells: Dictionary = {}
+var _marker_preview_enabled := false
+var _marker_preview_label := ""
+var _marker_preview_color := Color("f8fafc")
 
 
 func _ready() -> void:
@@ -49,9 +53,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		_update_hovered_cell(get_global_mouse_position())
+		if _marker_preview_enabled:
+			marker_requested.emit(_hovered_cell)
+			return
 		if not placement_enabled:
 			return
-		_update_hovered_cell(get_global_mouse_position())
 		if _can_place_at(_hovered_cell):
 			placement_requested.emit(_hovered_cell)
 
@@ -75,6 +82,34 @@ func get_cell_world_position(cell: Vector2i) -> Vector2:
 
 func is_area_free(cell: Vector2i, size_in_tiles: Vector2i) -> bool:
 	return _is_rect_inside_grid(cell, size_in_tiles) and _is_cell_area_free(cell, size_in_tiles)
+
+
+func get_world_rect() -> Rect2:
+	return Rect2(Vector2.ZERO, Vector2(GRID_COLUMNS * CELL_SIZE, GRID_ROWS * CELL_SIZE))
+
+
+func get_cell_from_world_position(world_position: Vector2) -> Vector2i:
+	return _mouse_to_cell(world_position)
+
+
+func get_cell_center_world_position(cell: Vector2i) -> Vector2:
+	return Vector2(cell * CELL_SIZE) + Vector2.ONE * (CELL_SIZE * 0.5)
+
+
+func show_marker_preview(label_text: String, preview_color: Color) -> void:
+	_marker_preview_enabled = true
+	_marker_preview_label = label_text
+	_marker_preview_color = preview_color
+	_update_hovered_cell(get_global_mouse_position())
+	queue_redraw()
+
+
+func clear_marker_preview() -> void:
+	if not _marker_preview_enabled:
+		return
+	_marker_preview_enabled = false
+	_marker_preview_label = ""
+	queue_redraw()
 
 
 func _draw() -> void:
@@ -108,6 +143,23 @@ func _draw() -> void:
 				if _occupied_cells.has(cell):
 					draw_rect(_cell_rect(cell), Color(0.95, 0.25, 0.25, 0.22), true)
 					draw_rect(_cell_rect(cell), Color(0.95, 0.35, 0.35, 0.6), false, 2.0)
+
+	if _marker_preview_enabled and _has_hovered_cell:
+		var marker_rect := _cell_rect(_hovered_cell)
+		var marker_fill := _marker_preview_color
+		marker_fill.a = 0.22
+		draw_rect(marker_rect, marker_fill, true)
+		draw_rect(marker_rect, _marker_preview_color, false, 2.0)
+
+		var font := ThemeDB.fallback_font
+		if font != null and not _marker_preview_label.is_empty():
+			var font_size := 20
+			var text_size := font.get_string_size(_marker_preview_label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+			var text_position := marker_rect.position + Vector2(
+				(marker_rect.size.x - text_size.x) * 0.5,
+				(marker_rect.size.y + text_size.y) * 0.5 - 3.0
+			)
+			draw_string(font, text_position, _marker_preview_label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, _marker_preview_color)
 
 
 func _update_hovered_cell(mouse_position: Vector2) -> void:

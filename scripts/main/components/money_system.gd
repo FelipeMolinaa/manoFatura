@@ -34,3 +34,10 @@ func earn(amount: int) -> void:
 
 	money += amount
 	money_changed.emit(money, amount)
+
+
+func set_money_value(value: int) -> void:
+	var next_money := maxi(value, 0)
+	var delta := next_money - money
+	money = next_money
+	money_changed.emit(money, delta)

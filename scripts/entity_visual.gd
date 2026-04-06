@@ -9,6 +9,7 @@ const TILE_SIZE := 32
 
 var _selection_state := "none"
 var _secondary_label := ""
+var _simulation_paused := false
 
 
 func _ready() -> void:
@@ -66,6 +67,10 @@ func set_secondary_label(value: String) -> void:
 		return
 	_secondary_label = value
 	queue_redraw()
+
+
+func set_simulation_paused(paused: bool) -> void:
+	_simulation_paused = paused
 
 
 func contains_global_point(world_position: Vector2) -> bool:

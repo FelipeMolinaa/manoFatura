@@ -157,6 +157,43 @@ func remove_entities(entities: Array[Node2D]) -> void:
 	_rebuild_occupied_cells()
 
 
+func get_entities_state() -> Array[Dictionary]:
+	var entities_state: Array[Dictionary] = []
+	for child in entities_container.get_children():
+		var entity_id: String = str(child.get_meta("entity_id", ""))
+		if entity_id.is_empty():
+			continue
+
+		var entity_definition := EntityDatabase.get_entity(entity_id)
+		var size: Vector2i = entity_definition.get("tamanho", Vector2i.ONE)
+		var cell: Vector2i = grid_overlay.get_cell_from_world_position(child.position)
+		var state := {
+			"entity_id": entity_id,
+			"cell": {"x": cell.x, "y": cell.y},
+		}
+		if child.has_meta("recipe_id"):
+			state["recipe_id"] = str(child.get_meta("recipe_id", ""))
+		state["size"] = {"x": size.x, "y": size.y}
+		entities_state.append(state)
+	return entities_state
+
+
+func load_entities_state(entities_state: Array[Dictionary]) -> void:
+	clear_all_entities(false)
+	for state in entities_state:
+		_spawn_entity_from_state(state)
+	_rebuild_occupied_cells()
+
+
+func clear_all_entities(emit_signals := true) -> void:
+	for child in entities_container.get_children():
+		entities_container.remove_child(child)
+		child.queue_free()
+	_rebuild_occupied_cells()
+	if emit_signals:
+		building_selected.emit(selected_building_id)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _build_mode_enabled or not has_pending_placement():
 		return
@@ -176,6 +213,26 @@ func _get_build_definition(entity_id: String) -> Dictionary:
 		"purchase_cost": int(entity_definition.get("valorCompra", 0)),
 		"scene": BUILD_SCENES[entity_id],
 	}
+
+
+func _spawn_entity_from_state(state: Dictionary) -> void:
+	var entity_id: String = str(state.get("entity_id", ""))
+	if entity_id.is_empty() or not BUILD_SCENES.has(entity_id):
+		return
+
+	var entity_definition := EntityDatabase.get_entity(entity_id)
+	var size: Vector2i = entity_definition.get("tamanho", Vector2i.ONE)
+	var cell_data: Dictionary = state.get("cell", {})
+	var cell := Vector2i(int(cell_data.get("x", 0)), int(cell_data.get("y", 0)))
+	var entity_scene: PackedScene = BUILD_SCENES[entity_id]
+	var instance := entity_scene.instantiate() as Node2D
+	instance.position = grid_overlay.get_cell_world_position(cell)
+	instance.set_meta("entity_id", entity_id)
+	instance.set_meta("occupied_cells", _cells_for_area(cell, size))
+	if state.has("recipe_id"):
+		instance.set_meta("recipe_id", str(state.get("recipe_id", "")))
+	_apply_entity_defaults(instance, entity_id)
+	entities_container.add_child(instance)
 
 
 func _rebuild_occupied_cells() -> void:

@@ -1,0 +1,67 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/workers_dialog.gd" id="1_jr5of"]
+
+[node name="WorkersDialog" type="ConfirmationDialog"]
+size = Vector2i(960, 620)
+title = "Funcionarios"
+script = ExtResource("1_jr5of")
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="RootColumn" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+
+[node name="TabContainer" type="TabContainer" parent="Margin/RootColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+current_tab = 0
+
+[node name="Contratados" type="VBoxContainer" parent="Margin/RootColumn/TabContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HiredEmptyLabel" type="Label" parent="Margin/RootColumn/TabContainer/Contratados"]
+visible = false
+layout_mode = 2
+text = "Nenhum funcionario contratado ainda."
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/RootColumn/TabContainer/Contratados"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HiredList" type="VBoxContainer" parent="Margin/RootColumn/TabContainer/Contratados/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Disponiveis" type="VBoxContainer" parent="Margin/RootColumn/TabContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="AvailableEmptyLabel" type="Label" parent="Margin/RootColumn/TabContainer/Disponiveis"]
+visible = false
+layout_mode = 2
+text = "Nao ha funcionarios disponiveis para contratar."
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/RootColumn/TabContainer/Disponiveis"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="AvailableList" type="VBoxContainer" parent="Margin/RootColumn/TabContainer/Disponiveis/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10

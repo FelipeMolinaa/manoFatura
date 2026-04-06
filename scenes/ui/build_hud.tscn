@@ -47,6 +47,11 @@ custom_minimum_size = Vector2(128, 40)
 layout_mode = 2
 text = "Construir"
 
+[node name="WorkersButton" type="Button" parent="BottomBar/Margin/Row"]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+text = "Funcionarios"
+
 [node name="MoneyLabel" type="Label" parent="BottomBar/Margin/Row"]
 layout_mode = 2
 text = "Dinheiro: $0"

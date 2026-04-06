@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://bg4vfn0r0v2rj"]
+[gd_scene load_steps=15 format=3 uid="uid://bg4vfn0r0v2rj"]
 
 [ext_resource type="Script" path="res://scripts/main/main.gd" id="1_3u7kx"]
 [ext_resource type="Script" path="res://scripts/grid_overlay.gd" id="2_nbv2g"]
@@ -10,6 +10,10 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/entity_actions_menu.tscn" id="8_40ieo"]
 [ext_resource type="PackedScene" path="res://scenes/ui/entity_config_dialog.tscn" id="9_xpbli"]
 [ext_resource type="Script" path="res://scripts/main/components/money_system.gd" id="10_8j2le"]
+[ext_resource type="Script" path="res://scripts/main/components/worker_manager.gd" id="11_p1p6o"]
+[ext_resource type="PackedScene" path="res://scenes/ui/workers_dialog.tscn" id="12_hm5w3"]
+[ext_resource type="Script" path="res://scripts/main/components/save_state_manager.gd" id="13_j7f1v"]
+[ext_resource type="PackedScene" path="res://scenes/ui/worker_action_dialog.tscn" id="14_2s38x"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_3u7kx")
@@ -24,6 +28,8 @@ enabled = true
 script = ExtResource("2_nbv2g")
 
 [node name="Entities" type="Node2D" parent="World"]
+
+[node name="Workers" type="Node2D" parent="World"]
 
 [node name="BuildManager" type="Node" parent="."]
 script = ExtResource("3_d4i1a")
@@ -43,10 +49,25 @@ grid_overlay_path = NodePath("../World/GridOverlay")
 [node name="EntityInteractionController" type="Node" parent="."]
 script = ExtResource("6_24o8e")
 entities_container_path = NodePath("../World/Entities")
+workers_container_path = NodePath("../World/Workers")
 confirmation_popup_path = NodePath("../CanvasLayer/ConfirmationPopup")
 entity_actions_menu_path = NodePath("../CanvasLayer/EntityActionsMenu")
 entity_config_dialog_path = NodePath("../CanvasLayer/EntityConfigDialog")
+worker_action_dialog_path = NodePath("../CanvasLayer/WorkerActionDialog")
 build_manager_path = NodePath("../BuildManager")
+
+[node name="WorkerManager" type="Node" parent="."]
+script = ExtResource("11_p1p6o")
+entities_container_path = NodePath("../World/Entities")
+workers_container_path = NodePath("../World/Workers")
+grid_overlay_path = NodePath("../World/GridOverlay")
+build_manager_path = NodePath("../BuildManager")
+
+[node name="SaveStateManager" type="Node" parent="."]
+script = ExtResource("13_j7f1v")
+build_manager_path = NodePath("../BuildManager")
+worker_manager_path = NodePath("../WorkerManager")
+money_system_path = NodePath("../MoneySystem")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -57,3 +78,7 @@ build_manager_path = NodePath("../BuildManager")
 [node name="EntityActionsMenu" parent="CanvasLayer" instance=ExtResource("8_40ieo")]
 
 [node name="EntityConfigDialog" parent="CanvasLayer" instance=ExtResource("9_xpbli")]
+
+[node name="WorkersDialog" parent="CanvasLayer" instance=ExtResource("12_hm5w3")]
+
+[node name="WorkerActionDialog" parent="CanvasLayer" instance=ExtResource("14_2s38x")]
