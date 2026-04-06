@@ -12,9 +12,12 @@ const BUILD_SCENES := {
 
 signal building_selected(entity_id: String)
 signal entity_placed(entity_id: String, cell: Vector2i)
+signal purchase_failed(entity_id: String, cost: int, current_money: int)
+signal entity_sold(entity_id: String, value: int)
 
 @export_node_path("Node2D") var grid_overlay_path: NodePath
 @export_node_path("Node2D") var entities_container_path: NodePath
+@export_node_path("Node") var money_system_path: NodePath
 
 var selected_building_id := ""
 var occupied_cells: Array[Vector2i] = []
@@ -25,6 +28,7 @@ var _moving_entity_restore_cells: Array[Vector2i] = []
 
 @onready var grid_overlay: Node2D = get_node(grid_overlay_path) as Node2D
 @onready var entities_container: Node2D = get_node(entities_container_path) as Node2D
+@onready var money_system: MoneySystem = get_node(money_system_path) as MoneySystem
 
 
 func _ready() -> void:
@@ -98,6 +102,12 @@ func _on_grid_placement_requested(cell: Vector2i) -> void:
 		return
 
 	var was_moving := _moving_entity != null
+	if not was_moving:
+		var purchase_cost: int = int(definition["purchase_cost"])
+		if not money_system.spend(purchase_cost):
+			purchase_failed.emit(definition["id"], purchase_cost, money_system.money)
+			return
+
 	var instance: Node2D
 	if was_moving:
 		instance = _moving_entity
@@ -137,6 +147,11 @@ func _refresh_grid_occupancy() -> void:
 func remove_entities(entities: Array[Node2D]) -> void:
 	for entity in entities:
 		if is_instance_valid(entity):
+			var entity_id: String = str(entity.get_meta("entity_id", ""))
+			var entity_definition := EntityDatabase.get_entity(entity_id)
+			var sell_value := int(entity_definition.get("valorVenda", 0))
+			money_system.earn(sell_value)
+			entity_sold.emit(entity_id, sell_value)
 			entities_container.remove_child(entity)
 			entity.queue_free()
 	_rebuild_occupied_cells()
@@ -158,6 +173,7 @@ func _get_build_definition(entity_id: String) -> Dictionary:
 		"name": entity_definition["nome"],
 		"size": entity_definition["tamanho"],
 		"color": entity_definition["cor"],
+		"purchase_cost": int(entity_definition.get("valorCompra", 0)),
 		"scene": BUILD_SCENES[entity_id],
 	}
 

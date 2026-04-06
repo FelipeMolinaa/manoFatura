@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://bg4vfn0r0v2rj"]
+[gd_scene load_steps=11 format=3 uid="uid://bg4vfn0r0v2rj"]
 
 [ext_resource type="Script" path="res://scripts/main/main.gd" id="1_3u7kx"]
 [ext_resource type="Script" path="res://scripts/grid_overlay.gd" id="2_nbv2g"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/confirmation_popup.tscn" id="7_1cuic"]
 [ext_resource type="PackedScene" path="res://scenes/ui/entity_actions_menu.tscn" id="8_40ieo"]
 [ext_resource type="PackedScene" path="res://scenes/ui/entity_config_dialog.tscn" id="9_xpbli"]
+[ext_resource type="Script" path="res://scripts/main/components/money_system.gd" id="10_8j2le"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_3u7kx")
@@ -28,6 +29,11 @@ script = ExtResource("2_nbv2g")
 script = ExtResource("3_d4i1a")
 grid_overlay_path = NodePath("../World/GridOverlay")
 entities_container_path = NodePath("../World/Entities")
+money_system_path = NodePath("../MoneySystem")
+
+[node name="MoneySystem" type="Node" parent="."]
+script = ExtResource("10_8j2le")
+starting_money = 1000
 
 [node name="CameraController" type="Node" parent="."]
 script = ExtResource("5_wms3n")

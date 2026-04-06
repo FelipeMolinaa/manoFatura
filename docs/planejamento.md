@@ -120,6 +120,7 @@ Base ja implementada no projeto:
 - Controle de ocupacao do grid
 - Entidades base de construcao: `Maquina`, `Bau`, `Fonte de Aco` e `Vendedor`
 - Bancos de dados em GDScript para entidades, itens e receitas
+- Sistema de dinheiro reativo com compra e venda de entidades
 - Refatoracao da cena principal em componentes de construcao, camera e HUD
 
 ## 7. Riscos e Decisoes Pendentes

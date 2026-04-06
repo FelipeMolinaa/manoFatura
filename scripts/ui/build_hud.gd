@@ -11,6 +11,7 @@ signal build_selected(entity_id: String)
 @onready var bottom_bar: PanelContainer = $BottomBar
 @onready var camera_button: Button = $BottomBar/Margin/Row/CameraButton
 @onready var build_button: Button = $BottomBar/Margin/Row/BuildButton
+@onready var money_label: Label = $BottomBar/Margin/Row/MoneyLabel
 @onready var mode_label: Label = $ModeLabel
 @onready var build_menu: PanelContainer = $BuildMenu
 @onready var build_menu_title: Label = $BuildMenu/BuildMenuMargin/BuildMenuColumn/BuildMenuTitle
@@ -106,6 +107,8 @@ func _apply_theme() -> void:
 
 	mode_label.add_theme_font_size_override("font_size", 28)
 	mode_label.add_theme_color_override("font_color", Color("e2e8f0"))
+	money_label.add_theme_font_size_override("font_size", 18)
+	money_label.add_theme_color_override("font_color", Color("f8fafc"))
 	build_menu_title.add_theme_font_size_override("font_size", 22)
 	build_menu_title.add_theme_color_override("font_color", Color("f8fafc"))
 	build_selection_label.add_theme_font_size_override("font_size", 16)
@@ -196,3 +199,7 @@ func _apply_button_selection(button: Button, is_selected: bool) -> void:
 		button.add_theme_color_override("font_color", Color("e2e8f0"))
 		button.add_theme_color_override("font_hover_color", Color("f8fafc"))
 		button.add_theme_color_override("font_pressed_color", Color("f8fafc"))
+
+
+func set_money(current_money: int) -> void:
+	money_label.text = "Dinheiro: $%d" % current_money

@@ -44,7 +44,7 @@ Objetivo: permitir posicionar entidades e validar espaco ocupado.
 
 Entrega esperada:
 
-- [ ] Jogador consegue comprar e posicionar entidades no mapa
+- [x] Jogador consegue comprar e posicionar entidades no mapa
 
 ### Etapa 3 - Funcionarios e Navegacao
 
