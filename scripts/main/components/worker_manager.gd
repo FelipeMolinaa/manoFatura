@@ -57,6 +57,7 @@ var _active_collision_pairs: Dictionary = {}
 var _collision_pair_counts: Dictionary = {}
 var _worker_stall_counts: Dictionary = {}
 var _worker_blocked_since_ms: Dictionary = {}
+var _moving_entity_point_attachments: Dictionary = {}
 
 @onready var entities_container: Node2D = get_node(entities_container_path) as Node2D
 @onready var workers_container: Node2D = get_node(workers_container_path) as Node2D
@@ -70,6 +71,12 @@ func _ready() -> void:
 		build_manager.entity_placed.connect(func(_entity_id: String, _cell: Vector2i) -> void:
 			_refresh_worker_paths()
 		)
+	if build_manager.has_signal("entity_move_started"):
+		build_manager.entity_move_started.connect(_on_entity_move_started)
+	if build_manager.has_signal("entity_move_cancelled"):
+		build_manager.entity_move_cancelled.connect(_on_entity_move_cancelled)
+	if build_manager.has_signal("entity_moved"):
+		build_manager.entity_moved.connect(_on_entity_moved)
 	if build_manager.has_signal("entity_sold"):
 		build_manager.entity_sold.connect(func(_entity_id: String, _value: int) -> void:
 			_refresh_worker_paths()
@@ -687,7 +694,9 @@ func _get_requested_amount(config: Dictionary, available_amount: int, capacity_a
 
 
 func _get_entity_for_worker_point(worker: WorkerAgent, point_kind: String) -> Node2D:
-	if not worker.can_patrol():
+	if point_kind == "point_a" and not worker.has_point_a:
+		return null
+	if point_kind == "point_b" and not worker.has_point_b:
 		return null
 
 	var point_position: Vector2 = worker.get_target_position(point_kind)
@@ -706,6 +715,80 @@ func _get_entity_for_worker_point(worker: WorkerAgent, point_kind: String) -> No
 	if nearest_distance <= POINT_ENTITY_SEARCH_RADIUS:
 		return nearest_entity
 	return null
+
+
+func _on_entity_move_started(entity: Node2D) -> void:
+	if not is_instance_valid(entity):
+		return
+
+	var attachments: Array[Dictionary] = []
+	for worker_node in workers_container.get_children():
+		var worker := worker_node as WorkerAgent
+		if worker == null:
+			continue
+
+		_append_worker_point_attachment(attachments, worker, entity, "point_a")
+		_append_worker_point_attachment(attachments, worker, entity, "point_b")
+
+	_moving_entity_point_attachments[entity.get_instance_id()] = attachments
+
+
+func _on_entity_move_cancelled(entity: Node2D) -> void:
+	if not is_instance_valid(entity):
+		return
+	_moving_entity_point_attachments.erase(entity.get_instance_id())
+
+
+func _on_entity_moved(entity: Node2D, movement_delta: Vector2) -> void:
+	if not is_instance_valid(entity) or movement_delta.is_zero_approx():
+		return
+
+	var changed := false
+	var entity_key: int = entity.get_instance_id()
+	var attachments: Array = _moving_entity_point_attachments.get(entity_key, [])
+	_moving_entity_point_attachments.erase(entity_key)
+	for raw_attachment in attachments:
+		if raw_attachment is not Dictionary:
+			continue
+
+		var attachment: Dictionary = raw_attachment
+		var worker: WorkerAgent = get_worker_by_id(str(attachment.get("worker_id", "")))
+		if worker == null:
+			continue
+
+		var point_kind: String = str(attachment.get("point_kind", ""))
+		if _move_worker_point(worker, point_kind, movement_delta):
+			changed = true
+
+	if not changed:
+		_refresh_worker_paths()
+		return
+
+	workers_changed.emit()
+	_refresh_worker_paths()
+
+
+func _append_worker_point_attachment(attachments: Array[Dictionary], worker: WorkerAgent, entity: Node2D, point_kind: String) -> void:
+	if point_kind == "point_a" and not worker.has_point_a:
+		return
+	if point_kind == "point_b" and not worker.has_point_b:
+		return
+
+	var current_entity: Node2D = _get_entity_for_worker_point(worker, point_kind)
+	if current_entity != entity:
+		return
+
+	attachments.append({
+		"worker_id": worker.worker_id,
+		"point_kind": point_kind,
+	})
+
+
+func _move_worker_point(worker: WorkerAgent, point_kind: String, movement_delta: Vector2) -> bool:
+	if point_kind != "point_a" and point_kind != "point_b":
+		return false
+	worker.set_point(point_kind, worker.get_target_position(point_kind) + movement_delta)
+	return true
 
 
 func _find_interaction_position_for_entity(worker: WorkerAgent, entity: Node2D) -> Variant:

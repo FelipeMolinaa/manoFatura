@@ -13,6 +13,9 @@ const BUILD_SCENES := {
 
 signal building_selected(entity_id: String)
 signal entity_placed(entity_id: String, cell: Vector2i)
+signal entity_move_started(entity: Node2D)
+signal entity_move_cancelled(entity: Node2D)
+signal entity_moved(entity: Node2D, movement_delta: Vector2)
 signal purchase_failed(entity_id: String, cost: int, current_money: int)
 signal entity_sold(entity_id: String, value: int)
 
@@ -26,6 +29,7 @@ var _build_mode_enabled := false
 var _moving_entity: Node2D
 var _moving_entity_restore_position := Vector2.ZERO
 var _moving_entity_restore_cells: Array[Vector2i] = []
+var _moving_entity_original_position := Vector2.ZERO
 
 @onready var grid_overlay: Node2D = get_node(grid_overlay_path) as Node2D
 @onready var entities_container: Node2D = get_node(entities_container_path) as Node2D
@@ -85,7 +89,9 @@ func begin_move_entity(entity: Node2D) -> void:
 	selected_building_id = entity.get_meta("entity_id", "")
 	_moving_entity = entity
 	_moving_entity_restore_position = entity.position
+	_moving_entity_original_position = entity.global_position
 	_moving_entity_restore_cells = entity.get_meta("occupied_cells", []).duplicate()
+	entity_move_started.emit(entity)
 	entities_container.remove_child(entity)
 	_rebuild_occupied_cells()
 	_refresh_grid_build_preview()
@@ -110,9 +116,12 @@ func _on_grid_placement_requested(cell: Vector2i) -> void:
 			return
 
 	var instance: Node2D
+	var movement_delta: Vector2 = Vector2.ZERO
 	if was_moving:
 		instance = _moving_entity
 		_moving_entity = null
+		movement_delta = grid_overlay.get_cell_world_position(cell) - _moving_entity_original_position
+		_moving_entity_original_position = Vector2.ZERO
 		_moving_entity_restore_cells.clear()
 	else:
 		var entity_scene: PackedScene = definition["scene"]
@@ -129,6 +138,8 @@ func _on_grid_placement_requested(cell: Vector2i) -> void:
 		selected_building_id = ""
 		_refresh_grid_build_preview()
 		building_selected.emit(selected_building_id)
+		if not movement_delta.is_zero_approx():
+			entity_moved.emit(instance, movement_delta)
 	entity_placed.emit(definition["id"], cell)
 
 
@@ -270,7 +281,9 @@ func _restore_moving_entity() -> void:
 	_moving_entity.position = _moving_entity_restore_position
 	_moving_entity.set_meta("occupied_cells", _moving_entity_restore_cells.duplicate())
 	entities_container.add_child(_moving_entity)
+	entity_move_cancelled.emit(_moving_entity)
 	_moving_entity = null
+	_moving_entity_original_position = Vector2.ZERO
 	_moving_entity_restore_cells.clear()
 	_rebuild_occupied_cells()
 

@@ -75,7 +75,7 @@ Objetivo: transformar o funcionario em unidade logistica.
 - [x] Permitir associar `Ponto A` e `Ponto B` clicando diretamente em entidades
 - [x] Implementar coleta e entrega de itens entre entidades
 - [x] Bloquear carregamento quando o peso ultrapassar o limite
-- [ ] Exibir visualmente qual item o funcionario esta carregando
+- [x] Exibir visualmente qual item o funcionario esta carregando
 
 Entrega esperada:
 
