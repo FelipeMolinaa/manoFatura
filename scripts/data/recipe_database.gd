@@ -5,12 +5,12 @@ const RECIPES := {
 	"parafuso": {
 		"id": "parafuso",
 		"entradas": [
-			{"item": "aco", "quantidade": 0.1},
+			{"item": "aco", "quantidade": 1},
 		],
 		"saidas": [
-			{"item": "parafuso", "quantidade": 1},
+			{"item": "parafuso", "quantidade": 15},
 		],
-		"tempoProducao": 1000,
+		"tempoProducao": 15000,
 	},
 	"viga": {
 		"id": "viga",

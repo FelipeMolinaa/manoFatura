@@ -48,7 +48,7 @@ static func normalize_inventory(raw_inventory: Variant, default_slot_labels: Arr
 		normalized_slots.append({
 			"label": label,
 			"item_id": str(raw_slot.get("item_id", "")),
-			"amount": maxi(int(raw_slot.get("amount", 0)), 0),
+			"amount": maxf(float(raw_slot.get("amount", 0.0)), 0.0),
 		})
 
 	var max_weight: float = float(inventory.get("max_weight", default_max_weight))
@@ -77,7 +77,7 @@ static func get_total_amount(inventory: Dictionary) -> int:
 	var total := 0
 	for raw_slot in inventory.get("slots", []):
 		if raw_slot is Dictionary:
-			total += maxi(int(raw_slot.get("amount", 0)), 0)
+			total += int(ceil(maxf(float(raw_slot.get("amount", 0.0)), 0.0)))
 	return total
 
 
@@ -89,8 +89,8 @@ static func get_total_weight(inventory: Dictionary) -> float:
 
 		var slot: Dictionary = raw_slot
 		var item_id: String = str(slot.get("item_id", ""))
-		var amount: int = maxi(int(slot.get("amount", 0)), 0)
-		if item_id.is_empty() or amount <= 0:
+		var amount: float = maxf(float(slot.get("amount", 0.0)), 0.0)
+		if item_id.is_empty() or amount <= 0.0:
 			continue
 
 		var item_definition: Dictionary = ItemDatabase.get_item(item_id)
@@ -109,7 +109,7 @@ static func get_item_amount(inventory: Dictionary, item_id: String) -> int:
 
 		var slot: Dictionary = raw_slot
 		if str(slot.get("item_id", "")) == item_id:
-			total += maxi(int(slot.get("amount", 0)), 0)
+			total += int(floor(maxf(float(slot.get("amount", 0.0)), 0.0)))
 	return total
 
 
@@ -120,9 +120,147 @@ static func get_first_item_id(inventory: Dictionary) -> String:
 
 		var slot: Dictionary = raw_slot
 		var item_id: String = str(slot.get("item_id", ""))
-		if not item_id.is_empty() and int(slot.get("amount", 0)) > 0:
+		if not item_id.is_empty() and float(slot.get("amount", 0.0)) > 0.0:
 			return item_id
 	return ""
+
+
+static func get_item_amount_in_slot(inventory: Dictionary, slot_label: String, item_id: String) -> float:
+	if slot_label.is_empty() or item_id.is_empty():
+		return 0.0
+
+	var slot := get_slot_by_label(inventory, slot_label)
+	if slot.is_empty() or str(slot.get("item_id", "")) != item_id:
+		return 0.0
+	return maxf(float(slot.get("amount", 0.0)), 0.0)
+
+
+static func get_first_item_id_in_slot(inventory: Dictionary, slot_label: String) -> String:
+	var slot := get_slot_by_label(inventory, slot_label)
+	if slot.is_empty():
+		return ""
+
+	var item_id: String = str(slot.get("item_id", ""))
+	if not item_id.is_empty() and float(slot.get("amount", 0.0)) > 0.0:
+		return item_id
+	return ""
+
+
+static func get_addable_amount_in_slot(inventory: Dictionary, slot_label: String, item_id: String, requested_amount: int) -> int:
+	if slot_label.is_empty() or item_id.is_empty() or requested_amount <= 0:
+		return 0
+
+	var slot := get_slot_by_label(inventory, slot_label)
+	if slot.is_empty():
+		return 0
+
+	var slot_item_id: String = str(slot.get("item_id", ""))
+	var slot_amount: float = maxf(float(slot.get("amount", 0.0)), 0.0)
+	if not slot_item_id.is_empty() and slot_item_id != item_id and slot_amount > 0.0:
+		return 0
+
+	var max_amount: int = int(inventory.get("max_amount", -1))
+	if max_amount > 0:
+		var available_amount: int = maxi(max_amount - int(ceil(get_total_amount(inventory))), 0)
+		requested_amount = mini(requested_amount, available_amount)
+		if requested_amount <= 0:
+			return 0
+
+	var max_weight: float = float(inventory.get("max_weight", -1.0))
+	if max_weight <= 0.0:
+		return requested_amount
+
+	var item_definition: Dictionary = ItemDatabase.get_item(item_id)
+	var item_weight: float = float(item_definition.get("peso", 0.0))
+	if item_weight <= 0.0:
+		return requested_amount
+
+	var available_weight: float = maxf(max_weight - get_total_weight(inventory), 0.0)
+	return mini(requested_amount, int(floor(available_weight / item_weight)))
+
+
+static func add_item_to_slot(inventory: Dictionary, slot_label: String, item_id: String, requested_amount: int) -> int:
+	var addable_amount := get_addable_amount_in_slot(inventory, slot_label, item_id, requested_amount)
+	if addable_amount <= 0:
+		return 0
+
+	var slot := get_slot_by_label(inventory, slot_label)
+	slot["item_id"] = item_id
+	slot["amount"] = float(slot.get("amount", 0.0)) + addable_amount
+	return addable_amount
+
+
+static func remove_item_from_slot(inventory: Dictionary, slot_label: String, item_id: String, requested_amount: int) -> int:
+	var removed_amount := int(floor(remove_item_amount_from_slot(inventory, slot_label, item_id, float(requested_amount))))
+	return removed_amount
+
+
+static func can_add_item_amount_to_slot(inventory: Dictionary, slot_label: String, item_id: String, requested_amount: float) -> bool:
+	if slot_label.is_empty() or item_id.is_empty() or requested_amount <= 0.0:
+		return false
+
+	var slot := get_slot_by_label(inventory, slot_label)
+	if slot.is_empty():
+		return false
+
+	var slot_item_id: String = str(slot.get("item_id", ""))
+	var slot_amount: float = maxf(float(slot.get("amount", 0.0)), 0.0)
+	if not slot_item_id.is_empty() and slot_item_id != item_id and slot_amount > 0.0:
+		return false
+
+	var max_weight: float = float(inventory.get("max_weight", -1.0))
+	if max_weight <= 0.0:
+		return true
+
+	var item_definition: Dictionary = ItemDatabase.get_item(item_id)
+	var item_weight: float = float(item_definition.get("peso", 0.0))
+	if item_weight <= 0.0:
+		return true
+
+	return get_total_weight(inventory) + item_weight * requested_amount <= max_weight + 0.0001
+
+
+static func add_item_amount_to_slot(inventory: Dictionary, slot_label: String, item_id: String, requested_amount: float) -> float:
+	if not can_add_item_amount_to_slot(inventory, slot_label, item_id, requested_amount):
+		return 0.0
+
+	var slot := get_slot_by_label(inventory, slot_label)
+	slot["item_id"] = item_id
+	slot["amount"] = maxf(float(slot.get("amount", 0.0)), 0.0) + requested_amount
+	return requested_amount
+
+
+static func remove_item_amount_from_slot(inventory: Dictionary, slot_label: String, item_id: String, requested_amount: float) -> float:
+	if slot_label.is_empty() or item_id.is_empty() or requested_amount <= 0.0:
+		return 0.0
+
+	var slot := get_slot_by_label(inventory, slot_label)
+	if slot.is_empty() or str(slot.get("item_id", "")) != item_id:
+		return 0.0
+
+	var current_amount: float = maxf(float(slot.get("amount", 0.0)), 0.0)
+	var removed_amount := minf(current_amount, requested_amount)
+	if removed_amount <= 0.0:
+		return 0.0
+
+	var next_amount := current_amount - removed_amount
+	if next_amount <= 0.0001:
+		slot["amount"] = 0
+		slot["item_id"] = ""
+	else:
+		slot["amount"] = next_amount
+	return removed_amount
+
+
+static func get_slot_by_label(inventory: Dictionary, slot_label: String) -> Dictionary:
+	for raw_slot in inventory.get("slots", []):
+		if raw_slot is not Dictionary:
+			continue
+
+		var slot: Dictionary = raw_slot
+		if str(slot.get("label", "")) == slot_label:
+			return slot
+	return {}
 
 
 static func get_addable_amount(inventory: Dictionary, item_id: String, requested_amount: int) -> int:
@@ -163,7 +301,7 @@ static func add_item(inventory: Dictionary, item_id: String, requested_amount: i
 
 		var slot: Dictionary = raw_slot
 		if str(slot.get("item_id", "")) == item_id:
-			slot["amount"] = int(slot.get("amount", 0)) + addable_amount
+			slot["amount"] = float(slot.get("amount", 0.0)) + addable_amount
 			return addable_amount
 
 	for raw_slot in slots:
@@ -171,7 +309,7 @@ static func add_item(inventory: Dictionary, item_id: String, requested_amount: i
 			continue
 
 		var slot: Dictionary = raw_slot
-		if str(slot.get("item_id", "")).is_empty() or int(slot.get("amount", 0)) <= 0:
+		if str(slot.get("item_id", "")).is_empty() or float(slot.get("amount", 0.0)) <= 0.0:
 			slot["item_id"] = item_id
 			slot["amount"] = addable_amount
 			return addable_amount
@@ -215,10 +353,10 @@ static func _has_existing_or_empty_slot(inventory: Dictionary, item_id: String) 
 
 		var slot: Dictionary = raw_slot
 		var slot_item_id: String = str(slot.get("item_id", ""))
-		var slot_amount: int = int(slot.get("amount", 0))
+		var slot_amount: float = float(slot.get("amount", 0.0))
 		if slot_item_id == item_id:
 			return true
-		if slot_item_id.is_empty() or slot_amount <= 0:
+		if slot_item_id.is_empty() or slot_amount <= 0.0:
 			return true
 	return false
 
@@ -234,7 +372,7 @@ static func _clamp_total_amount(inventory: Dictionary) -> void:
 			continue
 
 		var slot: Dictionary = raw_slot
-		var slot_amount: int = maxi(int(slot.get("amount", 0)), 0)
+		var slot_amount: int = int(ceil(maxf(float(slot.get("amount", 0.0)), 0.0)))
 		if remaining <= 0:
 			slot["amount"] = 0
 			slot["item_id"] = ""

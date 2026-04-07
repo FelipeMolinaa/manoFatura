@@ -3,6 +3,7 @@ extends PanelContainer
 const EntityDatabase = preload("res://scripts/data/entity_database.gd")
 const InventoryUtils = preload("res://scripts/data/inventory_utils.gd")
 const ItemDatabase = preload("res://scripts/data/item_database.gd")
+const RecipeDatabase = preload("res://scripts/data/recipe_database.gd")
 
 const POINT_ENTITY_SEARCH_RADIUS := 96.0
 const ACTION_IDS: Array[String] = [WorkerAgent.POINT_ACTION_PICKUP, WorkerAgent.POINT_ACTION_DROPOFF]
@@ -155,8 +156,15 @@ func _populate_entity_details(entity: Node2D) -> void:
 	var entity_size: Vector2i = entity_definition.get("tamanho", Vector2i.ONE)
 	var inventory: Dictionary = InventoryUtils.normalize_inventory(entity.get_meta("inventory_data", {}), [], -1.0)
 	var recipe_or_inventory_text: String = "Inventario: %d slots" % int(inventory.get("slot_count", 0))
+	var machine_state_text := ""
 	if entity_id == "maquina":
-		recipe_or_inventory_text = "Receita: %s" % str(entity.get_meta("recipe_id", "Nenhuma")).capitalize()
+		var recipe_id: String = str(entity.get_meta("recipe_id", "Nenhuma"))
+		var recipe := RecipeDatabase.get_recipe(recipe_id)
+		recipe_or_inventory_text = "Receita: %s" % str(recipe.get("id", recipe_id)).capitalize()
+		if entity.has_method("get_machine_status_text"):
+			machine_state_text = "Estado: %s" % entity.get_machine_status_text()
+		else:
+			machine_state_text = "Estado: %s" % str(entity.get_meta("machine_state", "aguardando")).capitalize()
 
 	title_label.text = str(entity_definition.get("nome", "Entidade"))
 	subtitle_label.text = "Entidade"
@@ -166,12 +174,15 @@ func _populate_entity_details(entity: Node2D) -> void:
 	_set_point_tabs_visible(false)
 	configure_entity_button.visible = entity_id == "maquina"
 
-	_set_info_rows([
+	var info_rows: Array[String] = [
 		"Tipo: %s" % entity_id.capitalize(),
 		"Tamanho: %dx%d" % [entity_size.x, entity_size.y],
 		"Posicao: (%.0f, %.0f)" % [entity.global_position.x, entity.global_position.y],
 		recipe_or_inventory_text,
-	])
+	]
+	if not machine_state_text.is_empty():
+		info_rows.append(machine_state_text)
+	_set_info_rows(info_rows)
 	_set_inventory_rows(inventory)
 
 
@@ -407,20 +418,20 @@ func _set_inventory_rows(inventory: Dictionary) -> void:
 
 		var slot: Dictionary = raw_slot
 		var item_id: String = str(slot.get("item_id", ""))
-		var amount: int = int(slot.get("amount", 0))
+		var amount: float = maxf(float(slot.get("amount", 0.0)), 0.0)
 		var slot_name: String = str(slot.get("label", "Slot"))
 		var row := Label.new()
 		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		row.add_theme_font_size_override("font_size", 15)
 		row.add_theme_color_override("font_color", Color("e5eef9"))
 
-		if item_id.is_empty() or amount <= 0:
+		if item_id.is_empty() or amount <= 0.0:
 			row.text = "%s: vazio" % slot_name
 		else:
 			var item_definition: Dictionary = ItemDatabase.get_item(item_id)
 			var item_name: String = str(item_definition.get("nome", item_id))
 			var item_weight: float = float(item_definition.get("peso", 0.0))
-			row.text = "%s: %s x%d (%.2f kg)" % [slot_name, item_name, amount, item_weight * amount]
+			row.text = "%s: %s x%s (%.2f kg)" % [slot_name, item_name, _format_amount(amount), item_weight * amount]
 
 		inventory_list.add_child(row)
 
@@ -490,3 +501,9 @@ func _build_button_style(background: Color, border: Color) -> StyleBoxFlat:
 	style.content_margin_right = 10
 	style.content_margin_bottom = 8
 	return style
+
+
+func _format_amount(amount: float) -> String:
+	if is_equal_approx(amount, roundf(amount)):
+		return "%d" % int(roundf(amount))
+	return "%.2f" % amount

@@ -63,6 +63,7 @@ entities_container_path = NodePath("../World/Entities")
 workers_container_path = NodePath("../World/Workers")
 grid_overlay_path = NodePath("../World/GridOverlay")
 build_manager_path = NodePath("../BuildManager")
+money_system_path = NodePath("../MoneySystem")
 
 [node name="SaveStateManager" type="Node" parent="."]
 script = ExtResource("13_j7f1v")

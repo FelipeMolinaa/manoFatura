@@ -1,12 +1,16 @@
 extends Node
 
 const InventoryUtils = preload("res://scripts/data/inventory_utils.gd")
+const ItemDatabase = preload("res://scripts/data/item_database.gd")
+const RecipeDatabase = preload("res://scripts/data/recipe_database.gd")
 const WORKER_SCENE := preload("res://scenes/entities/worker.tscn")
 
 const NAV_CELL_SIZE := 16
 const WORKER_RADIUS := 12.0
 const POINT_ENTITY_SEARCH_RADIUS := 96.0
 const LARGE_TRANSFER_AMOUNT := 999999
+const MACHINE_INPUT_SLOT_LABEL := "Entrada"
+const MACHINE_OUTPUT_SLOT_LABEL := "Saida"
 const COLLISION_WAIT_TIME := 0.10
 const FOLLOW_WAIT_TIME := 0.5
 const SIDE_COLLISION_RECALCULATE_THRESHOLD := 4
@@ -50,6 +54,7 @@ signal world_action_finished
 @export_node_path("Node2D") var workers_container_path: NodePath
 @export_node_path("Node2D") var grid_overlay_path: NodePath
 @export_node_path("Node") var build_manager_path: NodePath
+@export_node_path("Node") var money_system_path: NodePath
 
 var _pending_world_action := {}
 var _simulation_paused := false
@@ -63,6 +68,7 @@ var _moving_entity_point_attachments: Dictionary = {}
 @onready var workers_container: Node2D = get_node(workers_container_path) as Node2D
 @onready var grid_overlay = get_node(grid_overlay_path)
 @onready var build_manager = get_node(build_manager_path)
+@onready var money_system: MoneySystem = get_node(money_system_path) as MoneySystem
 
 
 func _ready() -> void:
@@ -600,12 +606,21 @@ func _pickup_from_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary
 		if entity_inventory_value is not Dictionary:
 			return false
 		entity_inventory = entity_inventory_value
-		available_amount = InventoryUtils.get_item_amount(entity_inventory, item_id)
+		if entity_id == "maquina":
+			available_amount = int(floor(InventoryUtils.get_item_amount_in_slot(entity_inventory, MACHINE_OUTPUT_SLOT_LABEL, item_id)))
+		else:
+			available_amount = InventoryUtils.get_item_amount(entity_inventory, item_id)
 		if available_amount <= 0:
-			item_id = InventoryUtils.get_first_item_id(entity_inventory)
+			if entity_id == "maquina":
+				item_id = InventoryUtils.get_first_item_id_in_slot(entity_inventory, MACHINE_OUTPUT_SLOT_LABEL)
+			else:
+				item_id = InventoryUtils.get_first_item_id(entity_inventory)
 			if item_id.is_empty():
 				return false
-			available_amount = InventoryUtils.get_item_amount(entity_inventory, item_id)
+			if entity_id == "maquina":
+				available_amount = int(floor(InventoryUtils.get_item_amount_in_slot(entity_inventory, MACHINE_OUTPUT_SLOT_LABEL, item_id)))
+			else:
+				available_amount = InventoryUtils.get_item_amount(entity_inventory, item_id)
 
 	var worker_capacity: int = worker.get_addable_item_amount(item_id, LARGE_TRANSFER_AMOUNT)
 	if worker_capacity <= 0:
@@ -617,7 +632,10 @@ func _pickup_from_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary
 
 	var transfer_amount: int = mini(desired_amount, worker_capacity)
 	if entity_id != "fonte_aco":
-		transfer_amount = InventoryUtils.remove_item(entity_inventory, item_id, transfer_amount)
+		if entity_id == "maquina":
+			transfer_amount = InventoryUtils.remove_item_from_slot(entity_inventory, MACHINE_OUTPUT_SLOT_LABEL, item_id, transfer_amount)
+		else:
+			transfer_amount = InventoryUtils.remove_item(entity_inventory, item_id, transfer_amount)
 		if transfer_amount <= 0:
 			return false
 		entity.set_meta("inventory_data", entity_inventory)
@@ -625,22 +643,34 @@ func _pickup_from_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary
 	var added_amount: int = worker.add_item(item_id, transfer_amount)
 	if added_amount <= 0:
 		if entity_id != "fonte_aco":
-			InventoryUtils.add_item(entity_inventory, item_id, transfer_amount)
+			if entity_id == "maquina":
+				InventoryUtils.add_item_to_slot(entity_inventory, MACHINE_OUTPUT_SLOT_LABEL, item_id, transfer_amount)
+			else:
+				InventoryUtils.add_item(entity_inventory, item_id, transfer_amount)
 			entity.set_meta("inventory_data", entity_inventory)
 		return false
 
 	if entity_id != "fonte_aco" and added_amount < transfer_amount:
-		InventoryUtils.add_item(entity_inventory, item_id, transfer_amount - added_amount)
+		if entity_id == "maquina":
+			InventoryUtils.add_item_to_slot(entity_inventory, MACHINE_OUTPUT_SLOT_LABEL, item_id, transfer_amount - added_amount)
+		else:
+			InventoryUtils.add_item(entity_inventory, item_id, transfer_amount - added_amount)
 		entity.set_meta("inventory_data", entity_inventory)
 	return true
 
 
 func _dropoff_to_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary) -> bool:
+	var entity_id: String = str(entity.get_meta("entity_id", ""))
+	if entity_id == "vendedor":
+		return _sell_to_vendor(worker, config)
+
 	if not entity.has_meta("inventory_data"):
 		return false
 
 	var item_id: String = worker.get_carried_item_id()
 	if item_id.is_empty():
+		return false
+	if not _entity_accepts_dropoff_item(entity, item_id):
 		return false
 
 	var carried_amount: int = worker.get_carried_item_amount(item_id)
@@ -651,7 +681,11 @@ func _dropoff_to_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary)
 	if entity_inventory_value is not Dictionary:
 		return false
 	var entity_inventory: Dictionary = entity_inventory_value
-	var entity_capacity: int = InventoryUtils.get_addable_amount(entity_inventory, item_id, LARGE_TRANSFER_AMOUNT)
+	var entity_capacity: int
+	if entity_id == "maquina":
+		entity_capacity = InventoryUtils.get_addable_amount_in_slot(entity_inventory, MACHINE_INPUT_SLOT_LABEL, item_id, LARGE_TRANSFER_AMOUNT)
+	else:
+		entity_capacity = InventoryUtils.get_addable_amount(entity_inventory, item_id, LARGE_TRANSFER_AMOUNT)
 	if entity_capacity <= 0:
 		return false
 
@@ -663,7 +697,11 @@ func _dropoff_to_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary)
 	if removed_amount <= 0:
 		return false
 
-	var added_amount: int = InventoryUtils.add_item(entity_inventory, item_id, removed_amount)
+	var added_amount: int
+	if entity_id == "maquina":
+		added_amount = InventoryUtils.add_item_to_slot(entity_inventory, MACHINE_INPUT_SLOT_LABEL, item_id, removed_amount)
+	else:
+		added_amount = InventoryUtils.add_item(entity_inventory, item_id, removed_amount)
 	if added_amount <= 0:
 		worker.add_item(item_id, removed_amount)
 		return false
@@ -673,6 +711,43 @@ func _dropoff_to_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary)
 
 	entity.set_meta("inventory_data", entity_inventory)
 	return true
+
+
+func _sell_to_vendor(worker: WorkerAgent, config: Dictionary) -> bool:
+	var item_id: String = worker.get_carried_item_id()
+	if item_id.is_empty():
+		return false
+
+	var carried_amount: int = worker.get_carried_item_amount(item_id)
+	if carried_amount <= 0:
+		return false
+
+	var desired_amount: int = _get_requested_amount(config, carried_amount, carried_amount)
+	if desired_amount <= 0:
+		return false
+
+	var removed_amount: int = worker.remove_item(item_id, desired_amount)
+	if removed_amount <= 0:
+		return false
+
+	var item_definition := ItemDatabase.get_item(item_id)
+	var sale_value := int(item_definition.get("valorVenda", 0)) * removed_amount
+	money_system.earn(sale_value)
+	return true
+
+
+func _entity_accepts_dropoff_item(entity: Node2D, item_id: String) -> bool:
+	if str(entity.get_meta("entity_id", "")) != "maquina":
+		return true
+
+	var recipe := RecipeDatabase.get_recipe(str(entity.get_meta("recipe_id", "")))
+	for raw_entry in recipe.get("entradas", []):
+		if raw_entry is not Dictionary:
+			continue
+		var entry: Dictionary = raw_entry
+		if str(entry.get("item", "")) == item_id:
+			return true
+	return false
 
 
 func _get_requested_amount(config: Dictionary, available_amount: int, capacity_amount: int) -> int:

@@ -85,15 +85,15 @@ Entrega esperada:
 
 Objetivo: fazer a fabrica funcionar.
 
-- [ ] Criar estado interno da maquina: aguardando, abastecida, produzindo, pronta para retirada
+- [x] Criar estado interno da maquina: aguardando, abastecida, produzindo, pronta para retirada
 - [x] Implementar receitas iniciais
-- [ ] Exigir funcionario para iniciar/abastecer/coletar producao da maquina
+- [x] Exigir funcionario para iniciar/abastecer/coletar producao da maquina
 - [x] Permitir selecionar receita da maquina
-- [ ] Conectar entrada e saida via trabalho dos funcionarios
+- [x] Conectar entrada e saida via trabalho dos funcionarios
 
 Entrega esperada:
 
-- [ ] Uma linha simples produz `parafuso` e `viga` a partir de `aco`
+- [x] Uma linha simples produz `parafuso` e `viga` a partir de `aco`
 
 ### Etapa 6 - Economia Basica
 
@@ -103,11 +103,11 @@ Objetivo: fechar o ciclo de progressao.
 - [x] Definir valor de venda dos itens
 - [x] Implementar saldo do jogador
 - [x] Descontar compras e creditar vendas
-- [ ] Integrar o `Vendedor` como destino logistico de produtos
+- [x] Integrar o `Vendedor` como destino logistico de produtos
 
 Entrega esperada:
 
-- [ ] O jogador consegue investir em estrutura e recuperar dinheiro vendendo producao
+- [x] O jogador consegue investir em estrutura e recuperar dinheiro vendendo producao
 
 ### Etapa 7 - Interface de Gerenciamento
 
@@ -122,7 +122,7 @@ Objetivo: dar controle operacional ao jogador.
 - [x] Permitir menu suspenso com botao direito em entidades selecionaveis
 - [ ] Indicacao de tarefa atual do funcionario
 - [x] Indicacao de item carregado e peso atual
-- [ ] Indicacao de maquina ativa, receita e estoque interno
+- [x] Indicacao de maquina ativa, receita e estoque interno
 
 Entrega esperada:
 
@@ -144,10 +144,8 @@ Entrega esperada:
 
 ## 3. Proxima Acao Recomendada
 
-Seguir para o fechamento visual da `Etapa 4` e entrar no ciclo real de producao:
+Seguir para o fechamento da economia basica e clareza operacional:
 
-1. exibir visualmente qual item o funcionario esta carregando
-2. criar estado interno da maquina: aguardando, abastecida, produzindo e pronta para retirada
-3. exigir funcionario para iniciar, abastecer e coletar producao da maquina
-4. conectar entrada e saida da maquina via trabalho dos funcionarios
-5. integrar o `Vendedor` como destino logistico de produtos
+1. indicar a tarefa atual do funcionario
+2. ajustar velocidades de caminhada e producao
+3. revisar gargalos de pathfinding e desempenho

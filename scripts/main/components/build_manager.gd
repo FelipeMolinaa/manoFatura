@@ -185,6 +185,10 @@ func get_entities_state() -> Array[Dictionary]:
 		}
 		if child.has_meta("recipe_id"):
 			state["recipe_id"] = str(child.get_meta("recipe_id", ""))
+		if child.has_meta("machine_state"):
+			state["machine_state"] = str(child.get_meta("machine_state", ""))
+		if child.has_meta("machine_progress_ms"):
+			state["machine_progress_ms"] = float(child.get_meta("machine_progress_ms", 0.0))
 		if child.has_meta("inventory_data"):
 			var inventory_data: Variant = child.get_meta("inventory_data", {})
 			if inventory_data is Dictionary:
@@ -247,6 +251,10 @@ func _spawn_entity_from_state(state: Dictionary) -> void:
 	instance.set_meta("occupied_cells", _cells_for_area(cell, size))
 	if state.has("recipe_id"):
 		instance.set_meta("recipe_id", str(state.get("recipe_id", "")))
+	if state.has("machine_state"):
+		instance.set_meta("machine_state", str(state.get("machine_state", "")))
+	if state.has("machine_progress_ms"):
+		instance.set_meta("machine_progress_ms", float(state.get("machine_progress_ms", 0.0)))
 	if state.has("inventory"):
 		var inventory_state: Variant = state.get("inventory", {})
 		if inventory_state is Dictionary:
@@ -316,7 +324,9 @@ func _apply_entity_defaults(entity: Node2D, entity_id: String) -> void:
 
 		var recipe := RecipeDatabase.get_recipe(current_recipe_id)
 		if entity.has_method("set_secondary_label"):
-			entity.set_secondary_label(recipe.get("id", current_recipe_id).capitalize())
+			var recipe_name: String = str(recipe.get("id", current_recipe_id)).capitalize()
+			var machine_state: String = str(entity.get_meta("machine_state", "Aguardando")).capitalize()
+			entity.set_secondary_label("%s | %s" % [recipe_name, machine_state])
 
 
 func _get_default_inventory_for_entity(entity_id: String) -> Dictionary:

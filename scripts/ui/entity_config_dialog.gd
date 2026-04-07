@@ -67,8 +67,8 @@ func _on_confirmed() -> void:
 		return
 
 	var selected_recipe_id := _recipe_ids[recipe_option_button.selected]
-	_target_entity.set_meta("recipe_id", selected_recipe_id)
+	if _target_entity.has_method("configure_machine_recipe"):
+		_target_entity.configure_machine_recipe(selected_recipe_id)
+		return
 
-	if _target_entity.has_method("set_secondary_label"):
-		var recipe := RecipeDatabase.get_recipe(selected_recipe_id)
-		_target_entity.set_secondary_label(recipe.get("id", selected_recipe_id).capitalize())
+	_target_entity.set_meta("recipe_id", selected_recipe_id)
