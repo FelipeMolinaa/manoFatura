@@ -9,7 +9,8 @@ Primeira entrega jogavel:
 - Colocacao de entidades no chao
 - Funcionarios com movimentacao e pathfinding
 - Tela de gerenciamento de funcionarios com configuracao de `Ponto A` e `Ponto B`
-- Bau/fonte infinita fornecendo `aco`
+- Bau com 1 slot/1 unidade e fonte infinita fornecendo `aco`
+- Painel lateral de selecao com informacoes e inventario de entidades e funcionarios
 - Maquina consumindo `aco` e produzindo `parafuso` ou `viga`
 - Funcionarios transportando itens entre entidades
 - Vendedor recebendo itens para gerar dinheiro
@@ -50,40 +51,44 @@ Entrega esperada:
 
 Objetivo: colocar os funcionarios no centro da simulacao.
 
-- [ ] Criar entidade `Funcionario`
-- [ ] Implementar movimentacao livre com pathfinding
-- [ ] Permitir desvio de obstaculos a partir das entidades colocadas
-- [ ] Implementar tela de gerenciamento de funcionarios
-- [ ] Permitir configurar `Ponto A` e `Ponto B`
-- [ ] Fazer o funcionario circular entre os pontos quando estiver ocioso ou em modo de rota designada
+- [x] Criar entidade `Funcionario`
+- [x] Implementar movimentacao livre com pathfinding
+- [x] Permitir desvio de obstaculos a partir das entidades colocadas
+- [x] Implementar tela de gerenciamento de funcionarios
+- [x] Permitir configurar `Ponto A` e `Ponto B`
+- [x] Fazer o funcionario circular entre os pontos quando estiver ocioso ou em modo de rota designada
 
 Entrega esperada:
 
-- [ ] Funcionarios se movem pelo menor caminho valido e respeitam bloqueios do mapa
+- [x] Funcionarios se movem pelo menor caminho valido e respeitam bloqueios do mapa
 
 ### Etapa 4 - Inventario, Peso e Transporte
 
 Objetivo: transformar o funcionario em unidade logistica.
 
-- [ ] Implementar inventario com `1 slot`
-- [ ] Implementar regra de carga maxima de `5 kg`
-- [ ] Criar definicao de peso por item
-- [ ] Implementar coleta e entrega de itens entre entidades
-- [ ] Bloquear carregamento quando o peso ultrapassar o limite
+- [x] Implementar inventario com `1 slot`
+- [x] Implementar regra de carga maxima de `5 kg`
+- [x] Criar definicao de peso por item
+- [x] Criar inventarios para maquinas, baus e funcionarios
+- [x] Limitar o bau a `1 slot` e `1 unidade`
+- [x] Permitir configurar acao e quantidade por ponto em unidade ou porcentagem
+- [x] Permitir associar `Ponto A` e `Ponto B` clicando diretamente em entidades
+- [x] Implementar coleta e entrega de itens entre entidades
+- [x] Bloquear carregamento quando o peso ultrapassar o limite
 - [ ] Exibir visualmente qual item o funcionario esta carregando
 
 Entrega esperada:
 
-- [ ] Funcionarios conseguem buscar um item, carregar e entregar corretamente
+- [x] Funcionarios conseguem buscar um item, carregar e entregar corretamente
 
 ### Etapa 5 - Maquinas e Producao
 
 Objetivo: fazer a fabrica funcionar.
 
 - [ ] Criar estado interno da maquina: aguardando, abastecida, produzindo, pronta para retirada
-- [ ] Implementar receitas iniciais
+- [x] Implementar receitas iniciais
 - [ ] Exigir funcionario para iniciar/abastecer/coletar producao da maquina
-- [ ] Permitir selecionar receita da maquina
+- [x] Permitir selecionar receita da maquina
 - [ ] Conectar entrada e saida via trabalho dos funcionarios
 
 Entrega esperada:
@@ -94,10 +99,10 @@ Entrega esperada:
 
 Objetivo: fechar o ciclo de progressao.
 
-- [ ] Definir preco de compra de cada entidade
-- [ ] Definir valor de venda dos itens
-- [ ] Implementar saldo do jogador
-- [ ] Descontar compras e creditar vendas
+- [x] Definir preco de compra de cada entidade
+- [x] Definir valor de venda dos itens
+- [x] Implementar saldo do jogador
+- [x] Descontar compras e creditar vendas
 - [ ] Integrar o `Vendedor` como destino logistico de produtos
 
 Entrega esperada:
@@ -108,10 +113,15 @@ Entrega esperada:
 
 Objetivo: dar controle operacional ao jogador.
 
-- [ ] Painel de entidades selecionadas
-- [ ] Painel de funcionario com pontos `A` e `B`
+- [x] Painel de entidades selecionadas
+- [x] Painel de funcionario com pontos `A` e `B`
+- [x] Painel lateral no canto direito sem sobrepor o menu inferior
+- [x] Separar informacoes/inventario, `Ponto A` e `Ponto B` em abas
+- [x] Ocultar abas de `Ponto A` e `Ponto B` quando uma entidade esta selecionada
+- [x] Permitir selecionar entidades e funcionarios no modo construcao quando nao ha placement pendente
+- [x] Permitir menu suspenso com botao direito em entidades selecionaveis
 - [ ] Indicacao de tarefa atual do funcionario
-- [ ] Indicacao de item carregado e peso atual
+- [x] Indicacao de item carregado e peso atual
 - [ ] Indicacao de maquina ativa, receita e estoque interno
 
 Entrega esperada:
@@ -134,10 +144,10 @@ Entrega esperada:
 
 ## 3. Proxima Acao Recomendada
 
-Seguir para a conclusao da `Etapa 2` e depois entrar na `Etapa 3`:
+Seguir para o fechamento visual da `Etapa 4` e entrar no ciclo real de producao:
 
-1. definir custo de compra das entidades
-2. concluir o fluxo de compra e posicionamento no mapa
-3. criar a entidade `Funcionario`
-4. implementar navegacao com pathfinding
-5. criar a base da tela de gerenciamento com `Ponto A` e `Ponto B`
+1. exibir visualmente qual item o funcionario esta carregando
+2. criar estado interno da maquina: aguardando, abastecida, produzindo e pronta para retirada
+3. exigir funcionario para iniciar, abastecer e coletar producao da maquina
+4. conectar entrada e saida da maquina via trabalho dos funcionarios
+5. integrar o `Vendedor` como destino logistico de produtos

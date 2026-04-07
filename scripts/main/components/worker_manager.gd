@@ -1,9 +1,12 @@
 extends Node
 
+const InventoryUtils = preload("res://scripts/data/inventory_utils.gd")
 const WORKER_SCENE := preload("res://scenes/entities/worker.tscn")
 
 const NAV_CELL_SIZE := 16
 const WORKER_RADIUS := 12.0
+const POINT_ENTITY_SEARCH_RADIUS := 96.0
+const LARGE_TRANSFER_AMOUNT := 999999
 const COLLISION_WAIT_TIME := 0.10
 const FOLLOW_WAIT_TIME := 0.5
 const SIDE_COLLISION_RECALCULATE_THRESHOLD := 4
@@ -216,12 +219,52 @@ func apply_world_action(world_position: Vector2) -> bool:
 	return true
 
 
+func apply_world_action_to_entity(entity: Node2D) -> bool:
+	if _pending_world_action.is_empty() or not is_instance_valid(entity):
+		return false
+
+	var action_id: String = _pending_world_action.get("action_id", "")
+	if action_id != "point_a" and action_id != "point_b":
+		return false
+
+	var worker: WorkerAgent = get_worker_by_id(_pending_world_action.get("worker_id", ""))
+	if worker == null:
+		cancel_pending_world_action()
+		return false
+
+	var interaction_position: Variant = _find_interaction_position_for_entity(worker, entity)
+	if interaction_position == null:
+		return false
+	if interaction_position is not Vector2:
+		return false
+
+	var point_position: Vector2 = interaction_position
+	worker.set_point(action_id, point_position)
+	_clear_worker_stall_state(worker.worker_id)
+	_try_start_worker_patrol(worker)
+
+	_pending_world_action.clear()
+	world_action_finished.emit()
+	workers_changed.emit()
+	return true
+
+
 func get_worker_by_id(worker_id: String) -> WorkerAgent:
 	for child in workers_container.get_children():
 		var worker := child as WorkerAgent
 		if worker != null and worker.worker_id == worker_id:
 			return worker
 	return null
+
+
+func set_worker_point_config(worker_id: String, point_kind: String, config: Dictionary) -> bool:
+	var worker: WorkerAgent = get_worker_by_id(worker_id)
+	if worker == null:
+		return false
+
+	worker.set_point_config(point_kind, config)
+	workers_changed.emit()
+	return true
 
 
 func get_action_hint() -> String:
@@ -236,9 +279,9 @@ func get_action_hint() -> String:
 	if action_id == "position":
 		return "Clique no mapa para posicionar %s." % worker.worker_name
 	if action_id == "point_a":
-		return "Clique no mapa para definir o Ponto A de %s." % worker.worker_name
+		return "Clique no mapa ou em uma entidade para definir o Ponto A de %s." % worker.worker_name
 	if action_id == "point_b":
-		return "Clique no mapa para definir o Ponto B de %s." % worker.worker_name
+		return "Clique no mapa ou em uma entidade para definir o Ponto B de %s." % worker.worker_name
 	return ""
 
 
@@ -502,12 +545,212 @@ func _on_worker_target_reached(worker: WorkerAgent, target_kind: String) -> void
 			_start_worker_patrol_to(worker, resume_target_kind)
 		return
 
+	_execute_point_work_action(worker, target_kind)
+
 	var next_target_kind := "point_a"
 	if target_kind == "point_a":
 		next_target_kind = "point_b"
 	elif target_kind == "point_b":
 		next_target_kind = "point_a"
 	_start_worker_patrol_to(worker, next_target_kind)
+
+
+func _execute_point_work_action(worker: WorkerAgent, point_kind: String) -> bool:
+	if worker == null or not is_instance_valid(worker):
+		return false
+	if point_kind != "point_a" and point_kind != "point_b":
+		return false
+
+	var target_entity: Node2D = _get_entity_for_worker_point(worker, point_kind)
+	if target_entity == null:
+		return false
+
+	var config: Dictionary = worker.get_point_config(point_kind)
+	var action: String = str(config.get("action", ""))
+	var changed := false
+	if action == WorkerAgent.POINT_ACTION_PICKUP:
+		changed = _pickup_from_entity(worker, target_entity, config)
+	elif action == WorkerAgent.POINT_ACTION_DROPOFF:
+		changed = _dropoff_to_entity(worker, target_entity, config)
+
+	if changed:
+		workers_changed.emit()
+	return changed
+
+
+func _pickup_from_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary) -> bool:
+	var item_id: String = str(config.get("item_id", WorkerAgent.DEFAULT_TRANSFER_ITEM_ID))
+	if item_id.is_empty():
+		return false
+
+	var entity_id: String = str(entity.get_meta("entity_id", ""))
+	var available_amount := LARGE_TRANSFER_AMOUNT
+	var entity_inventory: Dictionary = {}
+	if entity_id != "fonte_aco":
+		if not entity.has_meta("inventory_data"):
+			return false
+		var entity_inventory_value: Variant = entity.get_meta("inventory_data", {})
+		if entity_inventory_value is not Dictionary:
+			return false
+		entity_inventory = entity_inventory_value
+		available_amount = InventoryUtils.get_item_amount(entity_inventory, item_id)
+		if available_amount <= 0:
+			item_id = InventoryUtils.get_first_item_id(entity_inventory)
+			if item_id.is_empty():
+				return false
+			available_amount = InventoryUtils.get_item_amount(entity_inventory, item_id)
+
+	var worker_capacity: int = worker.get_addable_item_amount(item_id, LARGE_TRANSFER_AMOUNT)
+	if worker_capacity <= 0:
+		return false
+
+	var desired_amount: int = _get_requested_amount(config, available_amount, worker_capacity)
+	if desired_amount <= 0:
+		return false
+
+	var transfer_amount: int = mini(desired_amount, worker_capacity)
+	if entity_id != "fonte_aco":
+		transfer_amount = InventoryUtils.remove_item(entity_inventory, item_id, transfer_amount)
+		if transfer_amount <= 0:
+			return false
+		entity.set_meta("inventory_data", entity_inventory)
+
+	var added_amount: int = worker.add_item(item_id, transfer_amount)
+	if added_amount <= 0:
+		if entity_id != "fonte_aco":
+			InventoryUtils.add_item(entity_inventory, item_id, transfer_amount)
+			entity.set_meta("inventory_data", entity_inventory)
+		return false
+
+	if entity_id != "fonte_aco" and added_amount < transfer_amount:
+		InventoryUtils.add_item(entity_inventory, item_id, transfer_amount - added_amount)
+		entity.set_meta("inventory_data", entity_inventory)
+	return true
+
+
+func _dropoff_to_entity(worker: WorkerAgent, entity: Node2D, config: Dictionary) -> bool:
+	if not entity.has_meta("inventory_data"):
+		return false
+
+	var item_id: String = worker.get_carried_item_id()
+	if item_id.is_empty():
+		return false
+
+	var carried_amount: int = worker.get_carried_item_amount(item_id)
+	if carried_amount <= 0:
+		return false
+
+	var entity_inventory_value: Variant = entity.get_meta("inventory_data", {})
+	if entity_inventory_value is not Dictionary:
+		return false
+	var entity_inventory: Dictionary = entity_inventory_value
+	var entity_capacity: int = InventoryUtils.get_addable_amount(entity_inventory, item_id, LARGE_TRANSFER_AMOUNT)
+	if entity_capacity <= 0:
+		return false
+
+	var desired_amount: int = _get_requested_amount(config, carried_amount, entity_capacity)
+	if desired_amount <= 0:
+		return false
+
+	var removed_amount: int = worker.remove_item(item_id, mini(desired_amount, entity_capacity))
+	if removed_amount <= 0:
+		return false
+
+	var added_amount: int = InventoryUtils.add_item(entity_inventory, item_id, removed_amount)
+	if added_amount <= 0:
+		worker.add_item(item_id, removed_amount)
+		return false
+
+	if added_amount < removed_amount:
+		worker.add_item(item_id, removed_amount - added_amount)
+
+	entity.set_meta("inventory_data", entity_inventory)
+	return true
+
+
+func _get_requested_amount(config: Dictionary, available_amount: int, capacity_amount: int) -> int:
+	var quantity_value: float = maxf(float(config.get("quantity_value", 0.0)), 0.0)
+	if quantity_value <= 0.0:
+		return 0
+
+	var quantity_mode: String = str(config.get("quantity_mode", WorkerAgent.QUANTITY_MODE_AMOUNT))
+	var requested_amount: int = int(floor(quantity_value))
+	if quantity_mode == WorkerAgent.QUANTITY_MODE_PERCENT:
+		var percent_base := available_amount
+		if available_amount >= LARGE_TRANSFER_AMOUNT:
+			percent_base = capacity_amount
+		requested_amount = int(floor(float(percent_base) * minf(quantity_value, 100.0) / 100.0))
+		if requested_amount <= 0 and quantity_value > 0.0 and percent_base > 0:
+			requested_amount = 1
+
+	return mini(maxi(requested_amount, 0), mini(available_amount, capacity_amount))
+
+
+func _get_entity_for_worker_point(worker: WorkerAgent, point_kind: String) -> Node2D:
+	if not worker.can_patrol():
+		return null
+
+	var point_position: Vector2 = worker.get_target_position(point_kind)
+	var nearest_entity: Node2D
+	var nearest_distance: float = INF
+	for entity in entities_container.get_children():
+		var entity_node := entity as Node2D
+		if entity_node == null or not entity_node.has_method("get_global_bounds"):
+			continue
+
+		var distance: float = _distance_to_rect(point_position, entity_node.get_global_bounds())
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_entity = entity_node
+
+	if nearest_distance <= POINT_ENTITY_SEARCH_RADIUS:
+		return nearest_entity
+	return null
+
+
+func _find_interaction_position_for_entity(worker: WorkerAgent, entity: Node2D) -> Variant:
+	if worker == null or not is_instance_valid(entity) or not entity.has_method("get_global_bounds"):
+		return null
+
+	var entity_bounds: Rect2 = entity.get_global_bounds()
+	var search_bounds: Rect2 = entity_bounds.grow(POINT_ENTITY_SEARCH_RADIUS)
+	var world_rect: Rect2 = grid_overlay.get_world_rect()
+	var start_cell: Vector2i = grid_overlay.get_cell_from_world_position(search_bounds.position)
+	var end_cell: Vector2i = grid_overlay.get_cell_from_world_position(search_bounds.end)
+	var best_position := Vector2.ZERO
+	var best_score: float = INF
+
+	for y in range(start_cell.y, end_cell.y + 1):
+		for x in range(start_cell.x, end_cell.x + 1):
+			var candidate_cell := Vector2i(x, y)
+			var candidate_position: Vector2 = grid_overlay.get_cell_center_world_position(candidate_cell)
+			if not world_rect.has_point(candidate_position):
+				continue
+			if entity_bounds.grow(WORKER_RADIUS).has_point(candidate_position):
+				continue
+			if not _point_is_walkable(candidate_position, worker):
+				continue
+
+			var distance_to_entity: float = _distance_to_rect(candidate_position, entity_bounds)
+			if distance_to_entity > POINT_ENTITY_SEARCH_RADIUS:
+				continue
+
+			var score: float = distance_to_entity * 1000.0 + candidate_position.distance_to(worker.global_position)
+			if score < best_score:
+				best_score = score
+				best_position = candidate_position
+
+	if best_score == INF:
+		return null
+	return best_position
+
+
+func _distance_to_rect(point: Vector2, rect: Rect2) -> float:
+	var nearest_point: Vector2 = Vector2(
+		clampf(point.x, rect.position.x, rect.end.x),
+		clampf(point.y, rect.position.y, rect.end.y)
+	)
+	return point.distance_to(nearest_point)
 
 
 func _on_worker_movement_blocked(worker_node: Node2D, blocked_by_node: Node2D) -> void:

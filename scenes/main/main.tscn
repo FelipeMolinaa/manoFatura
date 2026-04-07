@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://bg4vfn0r0v2rj"]
+[gd_scene load_steps=16 format=3 uid="uid://bg4vfn0r0v2rj"]
 
 [ext_resource type="Script" path="res://scripts/main/main.gd" id="1_3u7kx"]
 [ext_resource type="Script" path="res://scripts/grid_overlay.gd" id="2_nbv2g"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/workers_dialog.tscn" id="12_hm5w3"]
 [ext_resource type="Script" path="res://scripts/main/components/save_state_manager.gd" id="13_j7f1v"]
 [ext_resource type="PackedScene" path="res://scenes/ui/worker_action_dialog.tscn" id="14_2s38x"]
+[ext_resource type="PackedScene" path="res://scenes/ui/selection_info_panel.tscn" id="15_whuv5"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_3u7kx")
@@ -82,3 +83,5 @@ money_system_path = NodePath("../MoneySystem")
 [node name="WorkersDialog" parent="CanvasLayer" instance=ExtResource("12_hm5w3")]
 
 [node name="WorkerActionDialog" parent="CanvasLayer" instance=ExtResource("14_2s38x")]
+
+[node name="SelectionInfoPanel" parent="CanvasLayer" instance=ExtResource("15_whuv5")]

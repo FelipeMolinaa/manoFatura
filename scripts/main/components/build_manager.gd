@@ -1,6 +1,7 @@
 extends Node
 
 const EntityDatabase = preload("res://scripts/data/entity_database.gd")
+const InventoryUtils = preload("res://scripts/data/inventory_utils.gd")
 const RecipeDatabase = preload("res://scripts/data/recipe_database.gd")
 
 const BUILD_SCENES := {
@@ -173,6 +174,10 @@ func get_entities_state() -> Array[Dictionary]:
 		}
 		if child.has_meta("recipe_id"):
 			state["recipe_id"] = str(child.get_meta("recipe_id", ""))
+		if child.has_meta("inventory_data"):
+			var inventory_data: Variant = child.get_meta("inventory_data", {})
+			if inventory_data is Dictionary:
+				state["inventory"] = InventoryUtils.duplicate_inventory(inventory_data)
 		state["size"] = {"x": size.x, "y": size.y}
 		entities_state.append(state)
 	return entities_state
@@ -231,6 +236,10 @@ func _spawn_entity_from_state(state: Dictionary) -> void:
 	instance.set_meta("occupied_cells", _cells_for_area(cell, size))
 	if state.has("recipe_id"):
 		instance.set_meta("recipe_id", str(state.get("recipe_id", "")))
+	if state.has("inventory"):
+		var inventory_state: Variant = state.get("inventory", {})
+		if inventory_state is Dictionary:
+			instance.set_meta("inventory_data", InventoryUtils.duplicate_inventory(inventory_state))
 	_apply_entity_defaults(instance, entity_id)
 	entities_container.add_child(instance)
 
@@ -267,14 +276,47 @@ func _restore_moving_entity() -> void:
 
 
 func _apply_entity_defaults(entity: Node2D, entity_id: String) -> void:
-	if entity_id != "maquina":
-		return
+	var inventory_defaults := _get_default_inventory_for_entity(entity_id)
+	if not inventory_defaults.is_empty():
+		var default_slot_labels: Array = []
+		var raw_slot_labels: Variant = inventory_defaults.get("slot_labels", [])
+		if raw_slot_labels is Array:
+			default_slot_labels = raw_slot_labels
+		var default_max_amount: int = int(inventory_defaults.get("max_amount", -1))
+		var forced_slot_count: int = int(inventory_defaults.get("force_slot_count", -1))
+		entity.set_meta(
+			"inventory_data",
+			InventoryUtils.normalize_inventory(
+				entity.get_meta("inventory_data", {}),
+				default_slot_labels,
+				float(inventory_defaults.get("max_weight", -1.0)),
+				default_max_amount,
+				forced_slot_count
+			)
+		)
 
-	var current_recipe_id: String = entity.get_meta("recipe_id", "")
-	if current_recipe_id.is_empty():
-		current_recipe_id = "parafuso"
-		entity.set_meta("recipe_id", current_recipe_id)
+	if entity_id == "maquina":
+		var current_recipe_id: String = entity.get_meta("recipe_id", "")
+		if current_recipe_id.is_empty():
+			current_recipe_id = "parafuso"
+			entity.set_meta("recipe_id", current_recipe_id)
 
-	var recipe := RecipeDatabase.get_recipe(current_recipe_id)
-	if entity.has_method("set_secondary_label"):
-		entity.set_secondary_label(recipe.get("id", current_recipe_id).capitalize())
+		var recipe := RecipeDatabase.get_recipe(current_recipe_id)
+		if entity.has_method("set_secondary_label"):
+			entity.set_secondary_label(recipe.get("id", current_recipe_id).capitalize())
+
+
+func _get_default_inventory_for_entity(entity_id: String) -> Dictionary:
+	if entity_id == "maquina":
+		return {
+			"slot_labels": ["Entrada", "Saida"],
+			"max_weight": 25.0,
+		}
+	if entity_id == "bau":
+		return {
+			"slot_labels": ["Item"],
+			"max_weight": 250.0,
+			"max_amount": 1,
+			"force_slot_count": 1,
+		}
+	return {}

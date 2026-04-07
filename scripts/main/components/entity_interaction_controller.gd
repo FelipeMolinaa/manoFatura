@@ -3,6 +3,7 @@ extends Node
 const EntityDatabase = preload("res://scripts/data/entity_database.gd")
 
 signal worker_action_requested(worker_id: String, action_id: String)
+signal selection_changed(entity: Node2D, worker: WorkerAgent)
 
 @export_node_path("Node2D") var entities_container_path: NodePath
 @export_node_path("Node2D") var workers_container_path: NodePath
@@ -13,6 +14,7 @@ signal worker_action_requested(worker_id: String, action_id: String)
 @export_node_path("Node") var build_manager_path: NodePath
 
 var _active := false
+var _allow_entity_selection := true
 var _focused_entity: Node2D
 var _focused_worker: WorkerAgent
 var _context_entity: Node2D
@@ -43,6 +45,10 @@ func set_active(enabled: bool) -> void:
 		worker_action_dialog.hide()
 
 
+func set_allow_entity_selection(enabled: bool) -> void:
+	_allow_entity_selection = enabled
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _active:
 		return
@@ -51,21 +57,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		var clicked_entity := _get_entity_at_position(entities_container.get_global_mouse_position())
-		if clicked_entity != null:
-			_set_focused_targets(clicked_entity, null)
-			entity_actions_menu.hide()
-			worker_action_dialog.hide()
-			entity_config_dialog.show_for_entity(clicked_entity)
-			get_viewport().set_input_as_handled()
-			return
+		if _allow_entity_selection:
+			var clicked_entity := _get_entity_at_position(entities_container.get_global_mouse_position())
+			if clicked_entity != null:
+				_set_focused_targets(clicked_entity, null)
+				entity_actions_menu.hide()
+				worker_action_dialog.hide()
+				entity_config_dialog.hide()
+				get_viewport().set_input_as_handled()
+				return
 
 		var clicked_worker := _get_worker_at_position(workers_container.get_global_mouse_position())
 		if clicked_worker != null:
 			_set_focused_targets(null, clicked_worker)
 			entity_actions_menu.hide()
 			entity_config_dialog.hide()
-			worker_action_dialog.show_for_worker(clicked_worker)
+			worker_action_dialog.hide()
 			get_viewport().set_input_as_handled()
 			return
 
@@ -76,6 +83,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		if not _allow_entity_selection:
+			return
+
 		var clicked_entity := _get_entity_at_position(entities_container.get_global_mouse_position())
 		if clicked_entity == null:
 			_set_focused_targets(null, null)
@@ -104,6 +114,8 @@ func _set_focused_targets(entity: Node2D, worker: WorkerAgent) -> void:
 
 	if is_instance_valid(_focused_worker) and _focused_worker.has_method("set_selection_state"):
 		_focused_worker.set_selection_state("focused")
+
+	selection_changed.emit(_focused_entity, _focused_worker)
 
 
 func _get_entity_at_position(world_position: Vector2) -> Node2D:
@@ -146,6 +158,12 @@ func _on_destroy_requested(entity: Node2D) -> void:
 		"Destruir",
 		"Cancelar"
 	)
+
+
+func request_destroy_entity(entity: Node2D) -> void:
+	if not is_instance_valid(entity):
+		return
+	_on_destroy_requested(entity)
 
 
 func _on_move_requested(entity: Node2D) -> void:

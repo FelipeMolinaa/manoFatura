@@ -1,6 +1,8 @@
 class_name WorkerAgent
 extends Node2D
 
+const InventoryUtils = preload("res://scripts/data/inventory_utils.gd")
+
 signal movement_target_reached(worker: Node2D, target_kind: String)
 signal movement_blocked(worker: Node2D, blocked_by: Node2D)
 signal movement_progressed(worker: Node2D)
@@ -9,6 +11,13 @@ const BODY_RADIUS := 11.0
 const TARGET_KIND_RETREAT := "__retreat__"
 const POSITION_HISTORY_MAX_SIZE := 24
 const POSITION_HISTORY_MIN_DISTANCE := 6.0
+const INVENTORY_SLOT_LABELS := ["Carga"]
+const MAX_CARRY_WEIGHT := 5.0
+const DEFAULT_TRANSFER_ITEM_ID := "aco"
+const POINT_ACTION_PICKUP := "pickup"
+const POINT_ACTION_DROPOFF := "dropoff"
+const QUANTITY_MODE_AMOUNT := "amount"
+const QUANTITY_MODE_PERCENT := "percent"
 
 var worker_id := ""
 var worker_name := "Funcionario"
@@ -20,6 +29,8 @@ var has_point_a := false
 var has_point_b := false
 var speed := 80.0
 var strength := 1.0
+var inventory_data := InventoryUtils.make_inventory(INVENTORY_SLOT_LABELS, MAX_CARRY_WEIGHT)
+var point_configs: Dictionary = {}
 
 var _selection_state := "none"
 var _current_path: Array[Vector2] = []
@@ -99,6 +110,13 @@ func configure_from_data(worker_data: Dictionary) -> void:
 
 	if worker_data.has("position") and worker_data["position"] is Vector2:
 		global_position = worker_data["position"]
+
+	inventory_data = InventoryUtils.normalize_inventory(
+		worker_data.get("inventory", {}),
+		INVENTORY_SLOT_LABELS,
+		MAX_CARRY_WEIGHT
+	)
+	point_configs = _normalize_point_configs(worker_data.get("point_configs", {}))
 
 	_position_history.clear()
 	_record_position_history(true)
@@ -223,6 +241,56 @@ func is_retreating() -> bool:
 	return _current_target_kind == TARGET_KIND_RETREAT
 
 
+func get_inventory_data() -> Dictionary:
+	return InventoryUtils.duplicate_inventory(inventory_data)
+
+
+func get_inventory_total_weight() -> float:
+	return InventoryUtils.get_total_weight(inventory_data)
+
+
+func get_max_carry_weight() -> float:
+	return MAX_CARRY_WEIGHT
+
+
+func get_point_config(point_kind: String) -> Dictionary:
+	if not point_configs.has(point_kind):
+		point_configs[point_kind] = _make_default_point_config(point_kind)
+	return (point_configs[point_kind] as Dictionary).duplicate(true)
+
+
+func set_point_config(point_kind: String, config: Dictionary) -> void:
+	if point_kind != "point_a" and point_kind != "point_b":
+		return
+	point_configs[point_kind] = _normalize_point_config(config, point_kind)
+
+
+func add_item(item_id: String, amount: int) -> int:
+	var added_amount := InventoryUtils.add_item(inventory_data, item_id, amount)
+	if added_amount > 0:
+		queue_redraw()
+	return added_amount
+
+
+func remove_item(item_id: String, amount: int) -> int:
+	var removed_amount := InventoryUtils.remove_item(inventory_data, item_id, amount)
+	if removed_amount > 0:
+		queue_redraw()
+	return removed_amount
+
+
+func get_carried_item_id() -> String:
+	return InventoryUtils.get_first_item_id(inventory_data)
+
+
+func get_carried_item_amount(item_id: String) -> int:
+	return InventoryUtils.get_item_amount(inventory_data, item_id)
+
+
+func get_addable_item_amount(item_id: String, requested_amount: int) -> int:
+	return InventoryUtils.get_addable_amount(inventory_data, item_id, requested_amount)
+
+
 func _get_overlapping_worker(target_position: Vector2) -> WorkerAgent:
 	var target_bounds := Rect2(target_position - Vector2(BODY_RADIUS, BODY_RADIUS), Vector2.ONE * BODY_RADIUS * 2.0)
 	for node in get_tree().get_nodes_in_group("workers"):
@@ -258,7 +326,31 @@ func to_data() -> Dictionary:
 		"point_a": point_a if has_point_a else null,
 		"point_b": point_b if has_point_b else null,
 		"position": global_position,
+		"inventory": InventoryUtils.duplicate_inventory(inventory_data),
+		"point_configs": point_configs.duplicate(true),
 	}
+
+
+func _normalize_point_configs(raw_configs: Variant) -> Dictionary:
+	var configs: Dictionary = raw_configs if raw_configs is Dictionary else {}
+	return {
+		"point_a": _normalize_point_config(configs.get("point_a", {}), "point_a"),
+		"point_b": _normalize_point_config(configs.get("point_b", {}), "point_b"),
+	}
+
+
+func _normalize_point_config(raw_config: Variant, point_kind: String) -> Dictionary:
+	var config: Dictionary = raw_config if raw_config is Dictionary else {}
+	return {
+		"action": str(config.get("action", POINT_ACTION_PICKUP if point_kind == "point_a" else POINT_ACTION_DROPOFF)),
+		"quantity_mode": str(config.get("quantity_mode", QUANTITY_MODE_AMOUNT)),
+		"quantity_value": maxf(float(config.get("quantity_value", 1.0)), 0.0),
+		"item_id": str(config.get("item_id", DEFAULT_TRANSFER_ITEM_ID)),
+	}
+
+
+func _make_default_point_config(point_kind: String) -> Dictionary:
+	return _normalize_point_config({}, point_kind)
 
 
 func _draw() -> void:

@@ -1,6 +1,7 @@
 extends Node
 
 const SAVE_PATH := "user://dev_save.json"
+const InventoryUtils = preload("res://scripts/data/inventory_utils.gd")
 
 @export_node_path("Node") var build_manager_path: NodePath
 @export_node_path("Node") var worker_manager_path: NodePath
@@ -101,6 +102,10 @@ func _encode_workers_state(workers_state: Array[Dictionary]) -> Array[Dictionary
 		var position = worker_data.get("position")
 		if position is Vector2:
 			encoded["position"] = {"x": position.x, "y": position.y}
+		if worker_data.has("inventory"):
+			encoded["inventory"] = _encode_inventory_state(worker_data.get("inventory", {}))
+		if worker_data.has("point_configs"):
+			encoded["point_configs"] = _duplicate_dictionary(worker_data.get("point_configs", {}))
 
 		encoded_state.append(encoded)
 	return encoded_state
@@ -128,6 +133,10 @@ func _decode_workers_state(workers_state: Array) -> Array[Dictionary]:
 			decoded["point_b"] = _dict_to_vector2(worker_data.get("point_b", {}))
 		if worker_data.has("position"):
 			decoded["position"] = _dict_to_vector2(worker_data.get("position", {}))
+		if worker_data.has("inventory"):
+			decoded["inventory"] = _decode_inventory_state(worker_data.get("inventory", {}))
+		if worker_data.has("point_configs"):
+			decoded["point_configs"] = _duplicate_dictionary(worker_data.get("point_configs", {}))
 
 		decoded_state.append(decoded)
 	return decoded_state
@@ -138,7 +147,11 @@ func _decode_entities_state(raw_entities_state: Array) -> Array[Dictionary]:
 	for raw_entity_state in raw_entities_state:
 		if typeof(raw_entity_state) != TYPE_DICTIONARY:
 			continue
-		decoded_state.append(raw_entity_state)
+		var entity_state: Dictionary = raw_entity_state
+		var decoded: Dictionary = entity_state.duplicate(true)
+		if decoded.has("inventory"):
+			decoded["inventory"] = _decode_inventory_state(decoded.get("inventory", {}))
+		decoded_state.append(decoded)
 	return decoded_state
 
 
@@ -148,3 +161,20 @@ func _dict_to_vector2(raw_value: Variant) -> Vector2:
 
 	var value: Dictionary = raw_value
 	return Vector2(float(value.get("x", 0.0)), float(value.get("y", 0.0)))
+
+
+func _encode_inventory_state(raw_inventory: Variant) -> Dictionary:
+	var inventory: Dictionary = InventoryUtils.normalize_inventory(raw_inventory, [], -1.0)
+	return inventory.duplicate(true)
+
+
+func _decode_inventory_state(raw_inventory: Variant) -> Dictionary:
+	if typeof(raw_inventory) != TYPE_DICTIONARY:
+		return {}
+	return (raw_inventory as Dictionary).duplicate(true)
+
+
+func _duplicate_dictionary(raw_value: Variant) -> Dictionary:
+	if typeof(raw_value) != TYPE_DICTIONARY:
+		return {}
+	return (raw_value as Dictionary).duplicate(true)

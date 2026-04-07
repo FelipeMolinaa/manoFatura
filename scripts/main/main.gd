@@ -14,6 +14,7 @@ const MODE_BUILD := "Construir"
 @onready var workers_dialog = $CanvasLayer/WorkersDialog
 @onready var confirmation_popup = $CanvasLayer/ConfirmationPopup
 @onready var entity_config_dialog = $CanvasLayer/EntityConfigDialog
+@onready var selection_info_panel = $CanvasLayer/SelectionInfoPanel
 
 var current_mode := MODE_CAMERA
 var _pending_fire_worker_id := ""
@@ -28,6 +29,7 @@ func _ready() -> void:
 	grid_overlay.marker_requested.connect(_on_grid_marker_requested)
 	money_system.money_changed.connect(_on_money_changed)
 	entity_interaction_controller.worker_action_requested.connect(_on_worker_action_requested)
+	entity_interaction_controller.selection_changed.connect(_on_selection_changed)
 	worker_manager.workers_changed.connect(_refresh_workers_dialog)
 	worker_manager.world_action_started.connect(_on_worker_world_action_started)
 	worker_manager.world_action_finished.connect(_on_worker_world_action_finished)
@@ -36,6 +38,12 @@ func _ready() -> void:
 	workers_dialog.fire_requested.connect(_on_worker_fire_requested)
 	confirmation_popup.action_confirmed.connect(_on_confirmation_action_confirmed)
 	entity_config_dialog.confirmed.connect(_on_entity_config_confirmed)
+	selection_info_panel.worker_action_requested.connect(_on_worker_action_requested)
+	selection_info_panel.entity_move_requested.connect(_on_selection_entity_move_requested)
+	selection_info_panel.entity_destroy_requested.connect(_on_selection_entity_destroy_requested)
+	selection_info_panel.entity_config_requested.connect(_on_selection_entity_config_requested)
+	selection_info_panel.worker_point_config_changed.connect(_on_worker_point_config_changed)
+	selection_info_panel.set_entities_container(entities_container)
 	_set_mode(current_mode)
 	save_state_manager.load_state()
 	_on_building_selected(build_manager.get_selected_building_id())
@@ -89,12 +97,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not worker_manager.has_pending_world_action():
 		return
 
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var clicked_entity := _get_entity_at_position(entities_container.get_global_mouse_position())
+		if clicked_entity != null and worker_manager.apply_world_action_to_entity(clicked_entity):
+			get_viewport().set_input_as_handled()
+			return
+
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		worker_manager.cancel_pending_world_action()
 		get_viewport().set_input_as_handled()
 
 
 func _refresh_workers_dialog() -> void:
+	selection_info_panel.refresh_selection()
 	if not workers_dialog.visible:
 		return
 	workers_dialog.show_with_data(
@@ -112,6 +127,7 @@ func _on_worker_action_requested(worker_id: String, action_id: String) -> void:
 	_set_mode(MODE_BUILD)
 	build_manager.cancel_pending_placement()
 	if worker_manager.start_world_action(worker_id, action_id):
+		_reopen_workers_dialog_on_action_finish = workers_dialog.visible
 		workers_dialog.hide()
 		_update_entity_interaction_state()
 		_update_worker_preview()
@@ -156,6 +172,7 @@ func _on_confirmation_action_confirmed(action_id: String) -> void:
 
 
 func _on_entity_config_confirmed() -> void:
+	selection_info_panel.refresh_selection()
 	save_state_manager.save_state()
 
 
@@ -168,11 +185,52 @@ func _open_workers_dialog() -> void:
 
 
 func _update_entity_interaction_state() -> void:
+	var can_select_entities := current_mode == MODE_CAMERA or current_mode == MODE_BUILD
+	var can_select_workers := current_mode == MODE_CAMERA or current_mode == MODE_BUILD
+	entity_interaction_controller.set_allow_entity_selection(can_select_entities)
 	entity_interaction_controller.set_active(
-		current_mode == MODE_BUILD
+		can_select_workers
 		and not build_manager.has_pending_placement()
 		and not worker_manager.has_pending_world_action()
 	)
+
+
+func _on_selection_changed(entity: Node2D, worker: WorkerAgent) -> void:
+	if current_mode != MODE_CAMERA and current_mode != MODE_BUILD:
+		selection_info_panel.clear_selection()
+		return
+
+	if is_instance_valid(entity):
+		selection_info_panel.show_for_entity(entity)
+		return
+	if is_instance_valid(worker):
+		selection_info_panel.show_for_worker(worker)
+		return
+	selection_info_panel.clear_selection()
+
+
+func _on_selection_entity_move_requested(entity: Node2D) -> void:
+	selection_info_panel.clear_selection()
+	_set_mode(MODE_BUILD)
+	build_manager.begin_move_entity(entity)
+	_update_entity_interaction_state()
+
+
+func _on_selection_entity_destroy_requested(entity: Node2D) -> void:
+	if entity == null:
+		return
+	selection_info_panel.clear_selection()
+	entity_interaction_controller.request_destroy_entity(entity)
+
+
+func _on_selection_entity_config_requested(entity: Node2D) -> void:
+	if entity == null:
+		return
+	entity_config_dialog.show_for_entity(entity)
+
+
+func _on_worker_point_config_changed(worker_id: String, point_kind: String, config: Dictionary) -> void:
+	worker_manager.set_worker_point_config(worker_id, point_kind, config)
 
 
 func _update_worker_preview() -> void:
@@ -187,8 +245,16 @@ func _on_grid_marker_requested(cell: Vector2i) -> void:
 		return
 
 	if worker_manager.apply_world_action(grid_overlay.get_cell_center_world_position(cell)):
-		_reopen_workers_dialog_on_action_finish = true
 		get_viewport().set_input_as_handled()
+
+
+func _get_entity_at_position(world_position: Vector2) -> Node2D:
+	var children := entities_container.get_children()
+	for index in range(children.size() - 1, -1, -1):
+		var child = children[index]
+		if child is Node2D and child.has_method("contains_global_point") and child.contains_global_point(world_position):
+			return child as Node2D
+	return null
 
 
 func _set_simulation_paused(paused: bool) -> void:
