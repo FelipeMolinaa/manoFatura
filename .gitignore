@@ -1,0 +1,18 @@
+# Godot 4+ editor cache
+.godot/
+
+# Mono / C# temp files
+.mono/
+.dotnet/
+
+# Export builds
+/android/
+/ios/
+/web/
+/windows/
+/linux/
+/macos/
+
+# OS files
+.DS_Store
+Thumbs.db
