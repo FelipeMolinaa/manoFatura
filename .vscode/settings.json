@@ -1,0 +1,16 @@
+{
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    "files.associations": {
+        "*.gd": "gdscript",
+        "*.tscn": "gdresource",
+        "*.tres": "gdresource"
+    },
+    "[gdscript]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "godotTools.editorPath.godot4": "/usr/bin/godot-mono"
+}
